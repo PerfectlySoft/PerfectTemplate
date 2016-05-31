@@ -3,19 +3,28 @@ Perfect Empty Starter Project
 
 This repository holds a blank Perfect project which can be cloned to serve as a starter for new work. It builds with Swift Package Manager and produces a stand-alone HTTP executable.
 
-## Building
+Ensure that you have installed the few dependencies which Perfect requires for your platform:
+
+[Dependencies](https://github.com/PerfectlySoft/Perfect/wiki/Dependencies)
+
+## Building & Running
+
+The following will clone and build an empty starter project and launch the server on port 8181.
 
 ```
+git clone https://github.com/PerfectlySoft/PerfectTemplate.git
+cd PerfectTemplate
 swift build
-```
-
-## Running
-
-```
 .build/debug/PerfectTemplate
 ```
 
-The server will be listening on port 8181. Access [localhost:8181](http://127.0.0.1:8181/) to see the greeting.
+You should see the following output:
+
+```
+Starting HTTP server on 0.0.0.0:8181 with document root ./webroot
+```
+
+This means the server is running and waiting for connections. Access [http://localhost:8181/](http://127.0.0.1:8181/) to see the greeting. Hit control-c to terminate the server.
 
 ## Starter Content
 
