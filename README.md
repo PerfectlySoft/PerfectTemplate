@@ -3,6 +3,14 @@ Perfect Empty Starter Project
 
 This repository holds a blank Perfect project which can be cloned to serve as a starter for new work. It builds with Swift Package Manager and produces a stand-alone HTTP executable.
 
+# Building
+
+```swift build```
+
+# Starter Content
+
+The template file contains a very simple "hello, world!" example.
+
 ```swift
 import PerfectLib
 
