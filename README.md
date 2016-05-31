@@ -7,6 +7,12 @@ This repository holds a blank Perfect project which can be cloned to serve as a 
 
 ```swift build```
 
+# Running
+
+```.build/debug/PerfectTemplate```
+
+The server will be listening on port 8181. Access [localhost:8181](http://127.0.0.1:8181/) to see the greeting.
+
 # Starter Content
 
 The template file contains a very simple "hello, world!" example.
