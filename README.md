@@ -5,11 +5,15 @@ This repository holds a blank Perfect project which can be cloned to serve as a 
 
 ## Building
 
-```swift build```
+```
+swift build
+```
 
 ## Running
 
-``` .build/debug/PerfectTemplate```
+```
+.build/debug/PerfectTemplate
+```
 
 The server will be listening on port 8181. Access [localhost:8181](http://127.0.0.1:8181/) to see the greeting.
 
