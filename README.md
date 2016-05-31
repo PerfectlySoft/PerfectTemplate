@@ -3,18 +3,17 @@ Perfect Empty Starter Project
 
 This repository holds a blank Perfect project which can be cloned to serve as a starter for new work. It builds with Swift Package Manager and produces a stand-alone HTTP executable.
 
-# Building
+## Building
 
 ```swift build```
 
-# Running
+## Running
 
 ```.build/debug/PerfectTemplate```
 
-
 The server will be listening on port 8181. Access [localhost:8181](http://127.0.0.1:8181/) to see the greeting.
 
-# Starter Content
+## Starter Content
 
 The template file contains a very simple "hello, world!" example.
 
