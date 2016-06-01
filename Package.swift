@@ -23,6 +23,6 @@ let package = Package(
 	name: "PerfectTemplate",
 	targets: [],
 	dependencies: [
-	                  .Package(url:"https://github.com/PerfectlySoft/Perfect.git", majorVersion: 0, minor: 17)
+	                  .Package(url:"https://github.com/PerfectlySoft/Perfect.git", majorVersion: 0, minor: 19)
     ]
 )
