@@ -33,7 +33,7 @@ Routing.Routes["/"] = {
     request, response in
     
     response.appendBody(string: "<html><title>Hello, world!</title><body>Hello, world!</body></html>")
-    response.requestCompleted()
+    response.completed()
 }
 
 do {
