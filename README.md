@@ -34,6 +34,8 @@ The template file contains a very simple "hello, world!" example.
 
 ```swift
 import PerfectLib
+import PerfectHTTP
+import PerfectHTTPServer
 
 // Initialize base-level services
 PerfectServer.initializeServices()
@@ -49,7 +51,7 @@ Routing.Routes["/"] = {
     request, response in
     
     response.appendBody(string: "<html><title>Hello, world!</title><body>Hello, world!</body></html>")
-    response.requestCompleted()
+    response.completed()
 }
 
 do {
@@ -57,7 +59,7 @@ do {
     // Launch the HTTP server on port 8181
     try HTTPServer(documentRoot: webRoot).start(port: 8181)
     
-} catch PerfectError.NetworkError(let err, let msg) {
+} catch PerfectError.networkError(let err, let msg) {
     print("Network error thrown: \(err) \(msg)")
 }
 ```
