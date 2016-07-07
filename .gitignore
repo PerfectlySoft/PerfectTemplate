@@ -64,3 +64,5 @@ fastlane/screenshots
 
 Packages/
 PerfectTemplate.xcodeproj
+Tests/
+webroot/
