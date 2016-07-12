@@ -27,14 +27,14 @@ PerfectServer.initializeServices()
 // Add our routes and such
 // Register your own routes and handlers
 Routing.Routes["/"] = {
-    request, response in
-    
-    response.appendBody(string: "<html><title>Hello, world!</title><body>Hello, world!</body></html>")
-    response.completed()
+	request, response in
+
+	response.appendBody(string: "<html><title>Hello, world!</title><body>Hello, world!</body></html>")
+	response.completed()
 }
 
 do {
-    let server = HTTPServer()
+	let server = HTTPServer()
 	
 	// Set a listen port of 8181
 	server.serverPort = 8181
@@ -45,12 +45,12 @@ do {
 	
 	// Gather command line options and further configure the server.
 	// Run the server with --help to see the list of supported arguments.
-	// Any command line arguments will supplant any of the values set above.
+	// Command line arguments will supplant any of the values set above.
 	configureServer(server)
 	
-    // Launch the HTTP server.
-    try server.start()
+	// Launch the HTTP server.
+	try server.start()
     
 } catch PerfectError.networkError(let err, let msg) {
-    print("Network error thrown: \(err) \(msg)")
+	print("Network error thrown: \(err) \(msg)")
 }
