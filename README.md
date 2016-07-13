@@ -37,9 +37,6 @@ import PerfectLib
 import PerfectHTTP
 import PerfectHTTPServer
 
-// Initialize base-level services
-PerfectServer.initializeServices()
-
 // Add our routes and such
 // Register your own routes and handlers
 Routing.Routes["/"] = {
