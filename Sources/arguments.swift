@@ -19,6 +19,7 @@
 
 import PerfectHTTPServer
 import PerfectLib
+
 #if os(Linux)
 	import SwiftGlibc
 #else
@@ -32,7 +33,7 @@ func configureServer(_ server: HTTPServer) {
 	var sslCert: String?
 	var sslKey: String?
 	
-	var args = Process.arguments
+	var args = CommandLine.arguments
 	
 	func argFirst() -> String {
 		guard let frst = args.first else {
@@ -72,7 +73,7 @@ func configureServer(_ server: HTTPServer) {
 			server.runAsUser = argFirst()
 		},
 		"--help": {
-			print("Usage: \(Process.arguments.first!) [--port listen_port] [--address listen_address] [--name server_name] [--root root_path] [--sslcert cert_path --sslkey key_path] [--runas user_name]")
+			print("Usage: \(CommandLine.arguments.first!) [--port listen_port] [--address listen_address] [--name server_name] [--root root_path] [--sslcert cert_path --sslkey key_path] [--runas user_name]")
 			exit(0)
 		}]
 	
