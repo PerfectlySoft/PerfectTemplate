@@ -19,11 +19,15 @@ Perfect Empty Starter Project
 
 This repository holds a blank Perfect project which can be cloned to serve as a starter for new work. It builds with Swift Package Manager and produces a stand-alone HTTP executable.
 
-**The master branch of this project currently compiles with the default Swift 3.0 toolchain included in Xcode 8 beta 2. On Ubuntu use the *Swift 3.0 Preview 2* toolchain, released July 7th.**
+###Compatibility with Swift
 
-Ensure that you have installed the few dependencies which Perfect requires for your platform:
+**The master branch of this project currently compiles with the August 26th Swift toolchain snapshot. **
 
-[Dependencies](https://github.com/PerfectlySoft/Perfect/wiki/Dependencies)
+```
+Current version: DEVELOPMENT-SNAPSHOT-2016-08-26-a
+```
+
+We focus exclusively on the latest and most stable version of Swift to maximize developers’ productivity. *Until the release of Swift 3.0 (expected in September 2016), please treat this version of Perfect for R&D purposes only*.
 
 ## Issues
 
