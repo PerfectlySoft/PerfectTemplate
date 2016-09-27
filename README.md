@@ -48,7 +48,7 @@ This repository holds a blank Perfect project which can be cloned to serve as a 
 
 ###Compatibility with Swift
 
-This project works only with the Swift 3.0 toochain available with Xcode 8.0+ or on Linux via [Swift.org](http://swift.org/).
+This project works only with the Swift 3.0 toolchain available with Xcode 8.0+ or on Linux via [Swift.org](http://swift.org/).
 
 ## Issues
 
