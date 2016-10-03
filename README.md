@@ -50,14 +50,6 @@ This repository holds a blank Perfect project which can be cloned to serve as a 
 
 This project works only with the Swift 3.0 toolchain available with Xcode 8.0+ or on Linux via [Swift.org](http://swift.org/).
 
-## Issues
-
-We are transitioning to using JIRA for all bugs and support related issues, therefore the GitHub issues has been disabled.
-
-If you find a mistake, bug, or any other helpful suggestion you'd like to make on the docs please head over to [http://jira.perfect.org:8080/servicedesk/customer/portal/1](http://jira.perfect.org:8080/servicedesk/customer/portal/1) and raise it.
-
-A comprehensive list of open issues can be found at [http://jira.perfect.org:8080/projects/ISS/issues](http://jira.perfect.org:8080/projects/ISS/issues)
-
 ## Swift version note:
 
 Due to a late-breaking bug in Xcode 8, if you wish to run directly within Xcode, we recommend installing swiftenv and installing the Swift 3.0.1 preview toolchain.
@@ -134,6 +126,15 @@ do {
 	print("Network error thrown: \(err) \(msg)")
 }
 ```
+
+
+## Issues
+
+We are transitioning to using JIRA for all bugs and support related issues, therefore the GitHub issues has been disabled.
+
+If you find a mistake, bug, or any other helpful suggestion you'd like to make on the docs please head over to [http://jira.perfect.org:8080/servicedesk/customer/portal/1](http://jira.perfect.org:8080/servicedesk/customer/portal/1) and raise it.
+
+A comprehensive list of open issues can be found at [http://jira.perfect.org:8080/projects/ISS/issues](http://jira.perfect.org:8080/projects/ISS/issues)
 
 
 
