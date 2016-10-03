@@ -58,6 +58,16 @@ If you find a mistake, bug, or any other helpful suggestion you'd like to make o
 
 A comprehensive list of open issues can be found at [http://jira.perfect.org:8080/projects/ISS/issues](http://jira.perfect.org:8080/projects/ISS/issues)
 
+## Swift version note:
+
+Due to a late-breaking bug in Xcode 8, if you wish to run directly within Xcode, we recommend installing swiftenv and installing the Swift 3.0.1 preview toolchain.
+
+```
+# after installing swiftenv from https://swiftenv.fuller.li/en/latest/
+swiftenv install https://swift.org/builds/swift-3.0.1-preview-1/xcode/swift-3.0.1-PREVIEW-1/swift-3.0.1-PREVIEW-1-osx.pkg
+```
+
+Alternatively, add to the "Library Search Paths" in "Project Settings" $(PROJECT_DIR), recursive.
 
 ## Building & Running
 
@@ -69,6 +79,8 @@ cd PerfectTemplate
 swift build
 .build/debug/PerfectTemplate
 ```
+
+**If you see a build error concerning OpenSSL, please see the swift version or Library Search Paths recommendations above.**
 
 You should see the following output:
 
