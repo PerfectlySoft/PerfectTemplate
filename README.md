@@ -43,20 +43,9 @@ Perfect Empty Starter Project
 
 This repository holds a blank Perfect project which can be cloned to serve as a starter for new work. It builds with Swift Package Manager and produces a stand-alone HTTP executable.
 
-###Compatibility with Swift
+## Compatibility with Swift
 
-This project works only with the Swift 3.0 toolchain available with Xcode 8.0+ or on Linux via [Swift.org](http://swift.org/).
-
-## Swift version note:
-
-Due to a late-breaking bug in Xcode 8, if you wish to run directly within Xcode, we recommend installing swiftenv and installing the Swift 3.0.1 preview toolchain.
-
-```
-# after installing swiftenv from https://swiftenv.fuller.li/en/latest/
-swiftenv install https://swift.org/builds/swift-3.0.1-preview-1/xcode/swift-3.0.1-PREVIEW-1/swift-3.0.1-PREVIEW-1-osx.pkg
-```
-
-Alternatively, add to the "Library Search Paths" in "Project Settings" $(PROJECT_DIR), recursive.
+The master branch of this project currently compiles with **Xcode 8.1** or the **Swift 3.0.1** toolchain on Ubuntu.
 
 ## Building & Running
 
