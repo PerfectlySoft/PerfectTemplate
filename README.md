@@ -58,8 +58,6 @@ swift build
 .build/debug/PerfectTemplate
 ```
 
-**If you see a build error concerning OpenSSL, please see the swift version or Library Search Paths recommendations above.**
-
 You should see the following output:
 
 ```
