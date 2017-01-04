@@ -45,11 +45,11 @@ This repository holds a blank Perfect project which can be cloned to serve as a 
 
 ## Compatibility with Swift
 
-The master branch of this project currently compiles with **Xcode 8.1** or the **Swift 3.0.1** toolchain on Ubuntu.
+The master branch of this project currently compiles with **Xcode 8.2** or the **Swift 3.0.2** toolchain on Ubuntu.
 
 ## Building & Running
 
-The following will clone and build an empty starter project and launch the server on port 8181.
+The following will clone and build an empty starter project and launch the server on port 8080 and 8181.
 
 ```
 git clone https://github.com/PerfectlySoft/PerfectTemplate.git
@@ -61,53 +61,82 @@ swift build
 You should see the following output:
 
 ```
-Starting HTTP server on 0.0.0.0:8181 with document root ./webroot
+[INFO] Starting HTTP server localhost on 0.0.0.0:8181
+[INFO] Starting HTTP server localhost on 0.0.0.0:8080
 ```
 
-This means the server is running and waiting for connections. Access [http://localhost:8181/](http://127.0.0.1:8181/) to see the greeting. Hit control-c to terminate the server.
+This means the servers are running and waiting for connections. Access [http://localhost:8181/](http://127.0.0.1:8080/) to see the greeting. Hit control-c to terminate the server.
 
 ## Starter Content
 
-The template file contains a very simple "hello, world!" example.
+The template file contains a simple "hello, world!" request handler and shows how to serve static files, compress outgoing content and start up more than one server at a time.
 
 ```swift
 import PerfectLib
 import PerfectHTTP
 import PerfectHTTPServer
 
-// Create HTTP server.
-let server = HTTPServer()
-
-// Register your own routes and handlers
-var routes = Routes()
-routes.add(method: .get, uri: "/", handler: {
+// An example request handler.
+// This 'handler' function can be referenced directly in the configuration below.
+func handler(data: [String:Any]) throws -> RequestHandler {
+	return {
 		request, response in
+		// Respond with a simple message.
+		response.setHeader(.contentType, value: "text/html")
 		response.appendBody(string: "<html><title>Hello, world!</title><body>Hello, world!</body></html>")
+		// Ensure that response.completed() is called when your processing is done.
 		response.completed()
 	}
-)
+}
 
-// Add the routes to the server.
-server.addRoutes(routes)
+// Configuration data for two example servers.
+// This example configuration shows how to launch one or more servers 
+// using a configuration dictionary.
 
-// Set a listen port of 8181
-server.serverPort = 8181
+let port1 = 8080, port2 = 8181
 
-// Set a document root.
-// This is optional. If you do not want to serve static content then do not set this.
-// Setting the document root will automatically add a static file handler for the route /**
-server.documentRoot = "./webroot"
-
-// Gather command line options and further configure the server.
-// Run the server with --help to see the list of supported arguments.
-// Command line arguments will supplant any of the values set above.
-configureServer(server)
+let confData = [
+	"servers": [
+		// Configuration data for one server which:
+		//	* Serves the hello world message at <host>:<port>/
+		//	* Serves static files out of the "./webroot"
+		//		directory (which must be located in the current working directory).
+		//	* Performs content compression on outgoing data when appropriate.
+		[
+			"name":"localhost",
+			"port":port1,
+			"routes":[
+				["method":"get", "uri":"/", "handler":handler],
+				["method":"get", "uri":"/**", "handler":PerfectHTTPServer.HTTPHandler.staticFiles,
+				 "documentRoot":"./webroot",
+				 "allowResponseFilters":true]
+			],
+			"filters":[
+				[
+				"type":"response",
+				"priority":"high",
+				"name":PerfectHTTPServer.HTTPFilter.contentCompression,
+				]
+			]
+		],
+		// Configuration data for another server which:
+		//	* Redirects all traffic back to the first server.
+		[
+			"name":"localhost",
+			"port":port2,
+			"routes":[
+				["method":"get", "uri":"/**", "handler":PerfectHTTPServer.HTTPHandler.redirect,
+				 "base":"http://localhost:\(port1)"]
+			]
+		]
+	]
+]
 
 do {
-	// Launch the HTTP server.
-	try server.start()
-} catch PerfectError.networkError(let err, let msg) {
-	print("Network error thrown: \(err) \(msg)")
+	// Launch the servers based on the configuration data.
+	try HTTPServer.launch(configurationData: confData)
+} catch {
+	fatalError("\(error)") // fatal error launching one of the servers
 }
 ```
 
