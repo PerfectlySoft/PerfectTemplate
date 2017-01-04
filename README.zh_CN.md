@@ -45,22 +45,11 @@ Perfect Web服务器项目模板
 
 ###Swift兼容性
 
-本项目必须使用Swift 3.0工具链及Xcode 8.0+，或者通过Linux安装[Swift.org](http://swift.org/)。
-
-## Swift 版本注意事项
-
-因为Xcode 8发行后出现了一些问题，如果您直接在Xcode下使用，我们建议安装swiftenv，以及 Swift 3.0.1 工具集预览版。
-
-```
-# after installing swiftenv from https://swiftenv.fuller.li/en/latest/
-swiftenv install https://swift.org/builds/swift-3.0.1-preview-1/xcode/swift-3.0.1-PREVIEW-1/swift-3.0.1-PREVIEW-1-osx.pkg
-```
-
-还有一种方式，就是在您Xcode中增加一个配置，即在项目设置“Project Settings”里面，查找条目“Library Search Paths”，然后将这个条目配置为“$(PROJECT_DIR)”，并且⚠️配置为⚠️递归形式“recursive”。这样就会通知编译器根据项目所在文件夹进行递归式检索项目所需要的函数库和参考引用。
+本项目目前使用Swift 3.0.2工具链（Ubuntu）或Xcode 8.2编译。
 
 ## 编译运行
 
-为了创建项目并且试验运行，请在终端命令行中输入以下内容。完成后就可以实现一个在本地网络8181端口工作的Web服务器。
+下列命令行可以克隆并在8080和8181端口编译并启动 HTTP 服务器：
 
 ```
 git clone https://github.com/PerfectlySoft/PerfectTemplate.git
@@ -72,53 +61,81 @@ swift build
 如果没有问题，输出应该看起来像是这样：
 
 ```
-Starting HTTP server on 0.0.0.0:8181 with document root ./webroot
+[INFO] Starting HTTP server localhost on 0.0.0.0:8181
+[INFO] Starting HTTP server localhost on 0.0.0.0:8080
 ```
 
 这表明服务器已经准备好并且等待连接了。请访问[http://localhost:8181/](http://127.0.0.1:8181/) 来查看欢迎信息。在终端命令行上输入control-c组合键即可停止Web服务。
 
 ## 快速上手
 
-以下的源代码展示了一个最简单的“你好，世界！”样例。
+模板项目包含了一个简单的“你好，世界！”页面，能够压缩传输内容并同时启动多个服务器。
 
-```swift
+``` swift
 import PerfectLib
 import PerfectHTTP
 import PerfectHTTPServer
 
-// 创建HTTP服务器
-let server = HTTPServer()
+// 页面控制器
+// 以下“页面句柄”可以直接引用和配置
+func handler(data: [String:Any]) throws -> RequestHandler {
+    return {
+        request, response in
+        // 响应一个简单的页面
+        response.setHeader(.contentType, value: "text/html")
+        response.appendBody(string: "<html><head><meta http-equiv='content-type' content='text/html;charset=utf-8'><title>你好，世界！</title></head><body>你好，世界！</body></html>")
+        // 在页面内容完成后必须主动调用 response.completed() 完成响应
+        response.completed()
+    }
+}
 
-// 注册自定义路由和页面句柄
-var routes = Routes()
-routes.add(method: .get, uri: "/", handler: {
-		request, response in
-		response.appendBody(string: "<html><head><meta http-equiv='content-type' content='text/html;charset=utf-8'><title>你好，世界！</title></head><body>你好，世界！</body></html>")
-		response.completed()
-	}
-)
+// 同时配置启动两个服务器
+// 以下配置例子显示了如何同时启动一个以上的服务器
+// 使用一个字典数据作为配置文件
 
-// 将路由注册到服务器
-server.addRoutes(routes)
+let port1 = 8080, port2 = 8181
 
-// 监听8181端口
-server.serverPort = 8181
-
-// 设置文档根目录。
-// 这个操作是可选的，如果没有静态页面内容则可以忽略这一步。
-// 设置文档根目录后，对于其他所有未经过滤器或已注册路由来说的其他路径“/**”，都会指向这个根目录下的文件。
-server.documentRoot = "./webroot"
-
-// 逐个检查命令行参数和服务器配置
-// 如果用命令行执行带 --help 参数的服务器可执行程序，就可以看到所有可以选择的参数。
-// 如果调用时在命令行参数，而且该参数在配置文件中也有说明，则命令行参数的值会取代配置文件。
-configureServer(server)
+let confData = [
+    "servers": [
+        // 1号服务器配置
+        //  * <host>:<port>/ 服务器下显示“你好，世界！”
+        //  * 提供 "./webroot" 下的文件访问，该文件夹必须设置在当前工作目录下
+        //  * 执行页面和传输压缩
+        [
+            "name":"localhost",
+            "port":port1,
+            "routes":[
+                ["method":"get", "uri":"/", "handler":handler],
+                ["method":"get", "uri":"/**", "handler":PerfectHTTPServer.HTTPHandler.staticFiles,
+                 "documentRoot":"./webroot",
+                 "allowResponseFilters":true]
+            ],
+            "filters":[
+                [
+                "type":"response",
+                "priority":"high",
+                "name":PerfectHTTPServer.HTTPFilter.contentCompression,
+                ]
+            ]
+        ],
+        // 2号服务器配置数据
+        //  * 将数据重定向返回给1号服务器
+        [
+            "name":"localhost",
+            "port":port2,
+            "routes":[
+                ["method":"get", "uri":"/**", "handler":PerfectHTTPServer.HTTPHandler.redirect,
+                 "base":"http://localhost:\(port1)"]
+            ]
+        ]
+    ]
+]
 
 do {
-	// 启动HTTP服务器
-	try server.start()
-} catch PerfectError.networkError(let err, let msg) {
-	print("网络异常： \(err) \(msg)")
+    // 使用配置信息启动服务器
+    try HTTPServer.launch(configurationData: confData)
+} catch {
+    fatalError("\(error)") // 启动异常
 }
 ```
 
