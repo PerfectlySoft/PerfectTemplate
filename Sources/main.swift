@@ -34,11 +34,10 @@ func handler(data: [String:Any]) throws -> RequestHandler {
 	}
 }
 
-// Configuration data for two example servers.
-// This example configuration shows how to launch one or more servers 
+// Configuration data for an example server.
+// This example configuration shows how to launch a server
 // using a configuration dictionary.
 
-let port1 = 8080, port2 = 8181
 
 let confData = [
 	"servers": [
@@ -49,7 +48,7 @@ let confData = [
 		//	* Performs content compression on outgoing data when appropriate.
 		[
 			"name":"localhost",
-			"port":port1,
+			"port":8181,
 			"routes":[
 				["method":"get", "uri":"/", "handler":handler],
 				["method":"get", "uri":"/**", "handler":PerfectHTTPServer.HTTPHandler.staticFiles,
@@ -62,16 +61,6 @@ let confData = [
 				"priority":"high",
 				"name":PerfectHTTPServer.HTTPFilter.contentCompression,
 				]
-			]
-		],
-		// Configuration data for another server which:
-		//	* Redirects all traffic back to the first server.
-		[
-			"name":"localhost",
-			"port":port2,
-			"routes":[
-				["method":"get", "uri":"/**", "handler":PerfectHTTPServer.HTTPHandler.redirect,
-				 "base":"http://localhost:\(port1)"]
 			]
 		]
 	]
