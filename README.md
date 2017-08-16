@@ -45,7 +45,7 @@ This repository holds a blank Perfect project which can be cloned to serve as a 
 
 ## Compatibility with Swift
 
-The master branch of this project currently compiles with **Xcode 8.2** or the **Swift 3.0.2** toolchain on Ubuntu.
+The master branch of this project currently compiles with **Xcode 8.3** or the **Swift 3.1** toolchain on Ubuntu.
 
 ## Building & Running
 
