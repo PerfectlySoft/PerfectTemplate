@@ -21,32 +21,36 @@ import PerfectLib
 import PerfectHTTP
 import PerfectHTTPServer
 
-struct Filter404: HTTPResponseFilter {
-  func filterBody(response: HTTPResponse, callback: (HTTPResponseFilterResult) -> ()) {
-    callback(.continue)
-  }
-
-  func filterHeaders(response: HTTPResponse, callback: (HTTPResponseFilterResult) -> ()) {
-    if case .notFound = response.status {
-      response.setBody(string: "404 \(response.request.path)")
-      response.setHeader(.contentLength, value: "\(response.bodyBytes.count)")
-      callback(.done)
-    } else {
-      callback(.continue)
-    }
-  }
+// An example request handler.
+// This 'handler' function can be referenced directly in the configuration below.
+func handler(data: [String:Any]) throws -> RequestHandler {
+	return {
+		request, response in
+		// Respond with a simple message.
+		response.setHeader(.contentType, value: "text/html")
+		response.appendBody(string: "<html><title>Hello, world!</title><body>Hello, world!</body></html>")
+		// Ensure that response.completed() is called when your processing is done.
+		response.completed()
+	}
 }
 
-public func filter404(data: [String:Any]) throws -> HTTPResponseFilter {
-  return Filter404()
-}
+// Configuration data for an example server.
+// This example configuration shows how to launch a server
+// using a configuration dictionary.
+
 
 let confData = [
 	"servers": [
+		// Configuration data for one server which:
+		//	* Serves the hello world message at <host>:<port>/
+		//	* Serves static files out of the "./webroot"
+		//		directory (which must be located in the current working directory).
+		//	* Performs content compression on outgoing data when appropriate.
 		[
 			"name":"localhost",
 			"port":8181,
 			"routes":[
+				["method":"get", "uri":"/", "handler":handler],
 				["method":"get", "uri":"/**", "handler":PerfectHTTPServer.HTTPHandler.staticFiles,
 				 "documentRoot":"./webroot",
 				 "allowResponseFilters":true]
@@ -55,7 +59,7 @@ let confData = [
 				[
 				"type":"response",
 				"priority":"high",
-				"name": filter404,
+				"name":PerfectHTTPServer.HTTPFilter.contentCompression,
 				]
 			]
 		]
