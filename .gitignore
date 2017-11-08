@@ -5,6 +5,7 @@
 ## Build generated
 build/
 DerivedData
+Package.resolved
 
 ## Various settings
 *.pbxuser
@@ -67,3 +68,5 @@ PerfectTemplate.xcodeproj
 Tests/
 webroot/
 Package.pins
+
+.DS_Store

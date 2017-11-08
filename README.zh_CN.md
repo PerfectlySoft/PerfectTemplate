@@ -1,4 +1,4 @@
-# PerfectTemplate [English](https://github.com/PerfectlySoft/PerfectTemplate)
+# PerfectTemplate [English](https://github.com/PerfectlySoft/PerfectTemplate) [Русский](README.ru_RU.md)
 
 <p align="center">
     <a href="http://perfect.org/get-involved.html" target="_blank">
@@ -45,7 +45,7 @@ Perfect Web服务器项目模板
 
 ###Swift兼容性
 
-本项目目前使用Swift 4.0工具链（Ubuntu）或Xcode 9编译。
+本项目目前使用Swift 4.0.2工具链（Ubuntu）或Xcode 9.1编译。
 
 ## 编译运行
 
@@ -54,8 +54,7 @@ Perfect Web服务器项目模板
 ```
 git clone https://github.com/PerfectlySoft/PerfectTemplate.git
 cd PerfectTemplate
-swift build
-.build/debug/PerfectTemplate
+swift run
 ```
 
 如果没有问题，输出应该看起来像是这样：

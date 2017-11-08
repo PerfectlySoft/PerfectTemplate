@@ -1,4 +1,4 @@
-# PerfectTemplate [简体中文](README.zh_CN.md)
+# PerfectTemplate [简体中文](README.zh_CN.md) [Русский](README.ru_RU.md)
 
 <p align="center">
     <a href="http://perfect.org/get-involved.html" target="_blank">
@@ -54,8 +54,7 @@ The following will clone and build an empty starter project and launch the serve
 ```
 git clone https://github.com/PerfectlySoft/PerfectTemplate.git
 cd PerfectTemplate
-swift build
-.build/debug/PerfectTemplate
+swift run
 ```
 
 You should see the following output:
