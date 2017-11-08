@@ -68,3 +68,5 @@ PerfectTemplate.xcodeproj
 Tests/
 webroot/
 Package.pins
+
+.DS_Store
