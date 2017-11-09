@@ -67,3 +67,4 @@ PerfectTemplate.xcodeproj
 Tests/
 webroot/
 Package.pins
+Package.resolved
