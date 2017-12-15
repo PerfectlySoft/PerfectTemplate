@@ -1,10 +1,19 @@
-// Generated automatically by Perfect Assistant Application
-// Date: 2017-09-20 19:30:47 +0000
 import PackageDescription
+#if os(Linux)
+import Glibc
+#else
+import Darwin
+#endif
+
+var url = "https://github.com/PerfectlySoft/Perfect-HTTPServer.git"
+if let urlenv = getenv("URL_PERFECT_HTTPSERVER") {
+	url = String(cString: urlenv)
+}
+
 let package = Package(
 	name: "PerfectTemplate",
 	targets: [],
 	dependencies: [
-		.Package(url: "https://github.com/PerfectlySoft/Perfect-HTTPServer.git", majorVersion: 3),
+		.Package(url: url, majorVersion: 3),
 	]
 )
