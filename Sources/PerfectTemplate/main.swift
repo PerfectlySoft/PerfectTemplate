@@ -17,31 +17,66 @@
 //===----------------------------------------------------------------------===//
 //
 
+import Foundation
 import PerfectHTTP
 import PerfectHTTPServer
+import PerfectMustache
+import PerfectCRUD
 
-// An example request handler.
-// This 'handler' function can be referenced directly in the configuration below.
-func handler(request: HTTPRequest, response: HTTPResponse) {
-	// Respond with a simple message.
-	response.setHeader(.contentType, value: "text/html")
-	response.appendBody(string: "<html><title>Hello, world!</title><body>Hello, world!</body></html>")
-	// Ensure that response.completed() is called when your processing is done.
-	response.completed()
+try TinyURL.initCRUD()
+
+let templatesDir = "./templates"
+
+func addURL(request: HTTPRequest, response: HTTPResponse) {
+	do {
+		let db = try TinyURL.db()
+		let addRequest = try request.decode(AddURLRequest.self)
+		return try db.transaction {
+			guard let input = try addRequest.validatedInput(db: db) else {
+				return response.addHeader(.location, value: "/").completed(status: .found)
+			}
+			let table = db.table(TinyURL.self)
+			try table.insert(input)
+			if let children = input.children,
+				!children.isEmpty {
+				try table.insert(children)
+			}
+			return response.addHeader(.location, value: "/get/\(input.key)").completed(status: .found)
+		}
+	} catch {
+		return response.setBody(string: "\(error)")
+			.completed(status: .internalServerError)
+	}
 }
 
-// Configure one server which:
-//	* Serves the hello world message at <host>:<port>/
-//	* Serves static files out of the "./webroot"
-//		directory (which must be located in the current working directory).
-//	* Performs content compression on outgoing data when appropriate.
+func fetchURL(request: HTTPRequest, response: HTTPResponse) {
+	guard let key = request.urlVariables["key"] else {
+		return response.addHeader(.location, value: "/").completed(status: .found)
+	}
+	do {
+		let db = try TinyURL.db()
+		let table = db.table(TinyURL.self)
+		guard let found = try table
+					.join(\.children, on: \.key, equals: \.parentKey)
+					.where(\TinyURL.key == key).first() else {
+			return response.addHeader(.location, value: "/").completed(status: .found)
+		}
+		
+		let map = found.dict
+		let ctx = MustacheEvaluationContext(templatePath: "\(templatesDir)/display.mustache", map: map)
+		let collector = MustacheEvaluationOutputCollector()
+		let txt = try ctx.formulateResponse(withCollector: collector)
+		response.setBody(string: txt).completed()
+	} catch {
+		return response.setBody(string: "\(error)")
+			.completed(status: .internalServerError)
+	}
+}
+
 var routes = Routes()
-routes.add(method: .get, uri: "/", handler: handler)
-routes.add(method: .get, uri: "/**",
-		   handler: StaticFileHandler(documentRoot: "./webroot", allowResponseFilters: true).handleRequest)
+routes.add(uri: "/add", handler: addURL)
+routes.add(uri: "/get/{key}", handler: fetchURL)
+routes.add(uri: "/**", handler: StaticFileHandler(documentRoot: "./webroot").handleRequest)
 try HTTPServer.launch(name: "localhost",
 					  port: 8181,
-					  routes: routes,
-					  responseFilters: [
-						(PerfectHTTPServer.HTTPFilter.contentCompression(data: [:]), HTTPFilterPriority.high)])
-
+					  routes: routes)
