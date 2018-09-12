@@ -1,0 +1,28 @@
+<html>
+<head><title>Display URL</title></head>
+<body>
+<p>
+This Tiny URL:<br>
+<a href="/get/{{key}}">/get/{{key}}</a>
+</p>
+Destination:
+<a href="{{destination}}">{{destination}}</a>
+<br>
+Description:
+<pre>{{description}}</pre>
+
+{{#hasChildren}}
+	Associated URLs:<p>
+	{{#children}}
+		Destination:
+		<a href="{{destination}}">{{destination}}</a>
+		<br>
+		Description:
+		<pre>{{description}}</pre>
+	{{/children}}
+{{/hasChildren}}
+{{#hasChildren}}
+	</p>
+{{/hasChildren}}
+</body>
+</html>
