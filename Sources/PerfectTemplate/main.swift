@@ -64,8 +64,7 @@ func fetchURL(request: HTTPRequest, response: HTTPResponse) {
 		
 		let map = found.dict
 		let ctx = MustacheEvaluationContext(templatePath: "\(templatesDir)/display.mustache", map: map)
-		let collector = MustacheEvaluationOutputCollector()
-		let txt = try ctx.formulateResponse(withCollector: collector)
+		let txt = try ctx.formulateResponse(withCollector: MustacheEvaluationOutputCollector())
 		response.setBody(string: txt).completed()
 	} catch {
 		return response.setBody(string: "\(error)")
