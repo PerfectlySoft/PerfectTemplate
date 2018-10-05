@@ -49,7 +49,7 @@ The master branch of this project currently compiles with **Xcode 10** or the **
 
 ## Building & Running
 
-The following will clone and build an empty starter project and launch the server on port 8080 and 8181.
+The following will clone and build an empty starter project and launch the server on port 8181.
 
 ```
 git clone https://github.com/PerfectlySoft/PerfectTemplate.git
@@ -68,10 +68,9 @@ This means the server is running and waiting for connections. Access [http://loc
 
 ## Starter Content
 
-The template file contains a simple "hello, world!" request handler and shows how to serve static files, compress outgoing content and start up more than one server at a time.
+The template file contains a simple "hello, world!" request handler and shows how to serve static files, and compress outgoing content.
 
 ```swift
-import PerfectLib
 import PerfectHTTP
 import PerfectHTTPServer
 
@@ -85,44 +84,21 @@ func handler(request: HTTPRequest, response: HTTPResponse) {
 	response.completed()
 }
 
-// Configuration data for an example server.
-// This example configuration shows how to launch a server
-// using a configuration dictionary.
+// Configure one server which:
+//	* Serves the hello world message at <host>:<port>/
+//	* Serves static files out of the "./webroot"
+//		directory (which must be located in the current working directory).
+//	* Performs content compression on outgoing data when appropriate.
+var routes = Routes()
+routes.add(method: .get, uri: "/", handler: handler)
+routes.add(method: .get, uri: "/**",
+		   handler: StaticFileHandler(documentRoot: "./webroot", allowResponseFilters: true).handleRequest)
+try HTTPServer.launch(name: "localhost",
+					  port: 8181,
+					  routes: routes,
+					  responseFilters: [
+						(PerfectHTTPServer.HTTPFilter.contentCompression(data: [:]), HTTPFilterPriority.high)])
 
-
-let confData = [
-	"servers": [
-		// Configuration data for one server which:
-		//	* Serves the hello world message at <host>:<port>/
-		//	* Serves static files out of the "./webroot"
-		//		directory (which must be located in the current working directory).
-		//	* Performs content compression on outgoing data when appropriate.
-		[
-			"name":"localhost",
-			"port":8181,
-			"routes":[
-				["method":"get", "uri":"/", "handler":handler],
-				["method":"get", "uri":"/**", "handler":PerfectHTTPServer.HTTPHandler.staticFiles,
-				 "documentRoot":"./webroot",
-				 "allowResponseFilters":true]
-			],
-			"filters":[
-				[
-				"type":"response",
-				"priority":"high",
-				"name":PerfectHTTPServer.HTTPFilter.contentCompression,
-				]
-			]
-		]
-	]
-]
-
-do {
-	// Launch the servers based on the configuration data.
-	try HTTPServer.launch(configurationData: confData)
-} catch {
-	fatalError("\(error)") // fatal error launching one of the servers
-}
 ```
 
 ## Further Information
