@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Posts — PerfectTemplate</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; background: #f9fafb; color: #1a1a1a; }
+
+        /* ── Top bar ── */
+        header { background: #fff; border-bottom: 1px solid #e5e7eb; padding: 0 24px; display: flex; align-items: center; gap: 16px; height: 56px; }
+        header a { color: #6b7280; text-decoration: none; font-size: 0.85rem; }
+        header a:hover { color: #111; }
+        header h1 { font-size: 1.1rem; margin: 0; flex: 1; }
+
+        /* ── Main content ── */
+        main { max-width: 860px; margin: 32px auto; padding: 0 24px; }
+
+        /* ── Toolbar ── */
+        .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .toolbar h2 { margin: 0; font-size: 1rem; color: #374151; }
+
+        /* ── Buttons ── */
+        .btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 6px; border: none; cursor: pointer; font-size: 0.85rem; font-weight: 500; transition: background 0.1s; }
+        .btn-primary { background: #2563eb; color: #fff; }
+        .btn-primary:hover { background: #1d4ed8; }
+        .btn-ghost { background: transparent; color: #374151; border: 1px solid #d1d5db; }
+        .btn-ghost:hover { background: #f3f4f6; }
+        .btn-danger { background: transparent; color: #dc2626; border: 1px solid #fca5a5; }
+        .btn-danger:hover { background: #fef2f2; }
+        .btn-sm { padding: 4px 10px; font-size: 0.8rem; }
+
+        /* ── Table ── */
+        .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; }
+        table { width: 100%; border-collapse: collapse; }
+        thead th { padding: 10px 16px; text-align: left; font-size: 0.78rem; font-weight: 600; color: #6b7280; text-transform: uppercase; letter-spacing: 0.04em; background: #f9fafb; border-bottom: 1px solid #e5e7eb; }
+        tbody tr { border-bottom: 1px solid #f3f4f6; transition: background 0.1s; }
+        tbody tr:last-child { border-bottom: none; }
+        tbody tr:hover { background: #f9fafb; }
+        td { padding: 12px 16px; font-size: 0.9rem; vertical-align: middle; }
+        td.title { font-weight: 500; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        td.body-preview { color: #6b7280; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        td.date { color: #9ca3af; font-size: 0.8rem; white-space: nowrap; }
+        td.actions { white-space: nowrap; text-align: right; }
+        td.actions .btn + .btn { margin-left: 6px; }
+
+        /* ── Empty / error states ── */
+        .empty { padding: 48px 24px; text-align: center; color: #9ca3af; }
+        .error-bar { background: #fef2f2; border: 1px solid #fca5a5; color: #dc2626; padding: 10px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 0.88rem; display: none; }
+
+        /* ── Modal overlay ── */
+        .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.35); display: none; align-items: center; justify-content: center; z-index: 100; }
+        .overlay.open { display: flex; }
+        .modal { background: #fff; border-radius: 12px; width: 100%; max-width: 480px; padding: 28px; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
+        .modal h3 { margin: 0 0 20px; font-size: 1.05rem; }
+
+        /* ── Form ── */
+        .field { margin-bottom: 16px; }
+        label { display: block; font-size: 0.82rem; font-weight: 600; color: #374151; margin-bottom: 5px; }
+        input[type=text], textarea { width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 7px; font-size: 0.9rem; font-family: inherit; outline: none; transition: border-color 0.15s; }
+        input[type=text]:focus, textarea:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.12); }
+        textarea { resize: vertical; min-height: 120px; }
+        .form-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
+
+        /* ── Loading spinner ── */
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spinner { width: 18px; height: 18px; border: 2px solid #e5e7eb; border-top-color: #2563eb; border-radius: 50%; animation: spin 0.7s linear infinite; display: inline-block; }
+    </style>
+</head>
+<body>
+
+<header>
+    <a href="/">← Home</a>
+    <h1>Posts</h1>
+</header>
+
+<main>
+    <div class="toolbar">
+        <h2 id="count-label">Loading…</h2>
+        <button class="btn btn-primary" onclick="openNew()">+ New Post</button>
+    </div>
+
+    <div class="error-bar" id="error-bar"></div>
+
+    <div class="card">
+        <table>
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Body</th>
+                    <th>Created</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="posts-body">
+                <tr><td colspan="4" class="empty"><span class="spinner"></span></td></tr>
+            </tbody>
+        </table>
+    </div>
+</main>
+
+<!-- Add / Edit modal -->
+<div class="overlay" id="overlay" onclick="maybeClose(event)">
+    <div class="modal">
+        <h3 id="modal-title">New Post</h3>
+        <form id="post-form" onsubmit="savePost(event)">
+            <input type="hidden" id="editing-id">
+            <div class="field">
+                <label for="f-title">Title</label>
+                <input type="text" id="f-title" placeholder="Enter a title" required autocomplete="off">
+            </div>
+            <div class="field">
+                <label for="f-body">Body</label>
+                <textarea id="f-body" placeholder="Write something…"></textarea>
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary" id="save-btn">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// ── API helpers ────────────────────────────────────────────────────────────────
+
+// When served via HTTP the relative path works fine. When the file is opened
+// directly (file:// or a preview pane without an HTTP origin) fall back to the
+// default dev server address so the API is still reachable.
+const API_BASE = (location.protocol === 'http:' || location.protocol === 'https:')
+    ? '/api'
+    : 'http://localhost:9191/api';
+
+async function api(method, path, body) {
+    const opts = { method, headers: { 'Content-Type': 'application/json' } };
+    if (body !== undefined) opts.body = JSON.stringify(body);
+    const res = await fetch(API_BASE + path, opts);
+    if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || res.statusText);
+    }
+    return res.json();
+}
+
+// ── State ──────────────────────────────────────────────────────────────────────
+
+let posts = [];
+
+// ── Render ─────────────────────────────────────────────────────────────────────
+
+function formatDate(iso) {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    return isNaN(d) ? iso : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function render() {
+    const label = document.getElementById('count-label');
+    const tbody  = document.getElementById('posts-body');
+    label.textContent = posts.length === 1 ? '1 post' : `${posts.length} posts`;
+
+    if (posts.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="empty">No posts yet — create one above.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = posts.map(p => `
+        <tr>
+            <td class="title" title="${esc(p.title)}">${esc(p.title)}</td>
+            <td class="body-preview" title="${esc(p.body)}">${esc(p.body)}</td>
+            <td class="date">${formatDate(p.createdAt)}</td>
+            <td class="actions">
+                <button class="btn btn-ghost btn-sm" onclick="openEdit('${esc(p.id)}')">Edit</button>
+                <button class="btn btn-danger btn-sm" onclick="deletePost('${esc(p.id)}', this)">Delete</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function esc(str) {
+    return String(str ?? '')
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// ── Load ───────────────────────────────────────────────────────────────────────
+
+async function loadPosts() {
+    hideError();
+    try {
+        posts = await api('GET', '/posts');
+        render();
+    } catch (e) {
+        showError('Could not load posts: ' + e.message);
+        document.getElementById('posts-body').innerHTML =
+            '<tr><td colspan="4" class="empty">Failed to load.</td></tr>';
+        document.getElementById('count-label').textContent = 'Posts';
+    }
+}
+
+// ── Create / Update ────────────────────────────────────────────────────────────
+
+async function savePost(e) {
+    e.preventDefault();
+    const id    = document.getElementById('editing-id').value;
+    const title = document.getElementById('f-title').value.trim();
+    const body  = document.getElementById('f-body').value.trim();
+    const btn   = document.getElementById('save-btn');
+
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+    hideError();
+
+    try {
+        if (id) {
+            await api('PUT', '/posts/' + id, { title, body });
+        } else {
+            await api('POST', '/posts', { title, body });
+        }
+        closeModal();
+        await loadPosts();
+    } catch (err) {
+        showError('Save failed: ' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'Save';
+    }
+}
+
+// ── Delete ─────────────────────────────────────────────────────────────────────
+
+async function deletePost(id, btn) {
+    if (!confirm('Delete this post?')) return;
+    btn.disabled = true;
+    hideError();
+    try {
+        await api('DELETE', '/posts/' + id);
+        await loadPosts();
+    } catch (err) {
+        showError('Delete failed: ' + err.message);
+        btn.disabled = false;
+    }
+}
+
+// ── Modal ──────────────────────────────────────────────────────────────────────
+
+function openNew() {
+    document.getElementById('modal-title').textContent = 'New Post';
+    document.getElementById('editing-id').value = '';
+    document.getElementById('f-title').value = '';
+    document.getElementById('f-body').value = '';
+    document.getElementById('overlay').classList.add('open');
+    document.getElementById('f-title').focus();
+}
+
+function openEdit(id) {
+    const p = posts.find(x => x.id === id);
+    if (!p) return;
+    document.getElementById('modal-title').textContent = 'Edit Post';
+    document.getElementById('editing-id').value = p.id;
+    document.getElementById('f-title').value = p.title;
+    document.getElementById('f-body').value = p.body;
+    document.getElementById('overlay').classList.add('open');
+    document.getElementById('f-title').focus();
+}
+
+function closeModal() {
+    document.getElementById('overlay').classList.remove('open');
+}
+
+function maybeClose(e) {
+    if (e.target === document.getElementById('overlay')) closeModal();
+}
+
+// ── Error bar ──────────────────────────────────────────────────────────────────
+
+function showError(msg) {
+    const bar = document.getElementById('error-bar');
+    bar.textContent = msg;
+    bar.style.display = 'block';
+}
+
+function hideError() {
+    document.getElementById('error-bar').style.display = 'none';
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────────
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+loadPosts();
+</script>
+</body>
+</html>

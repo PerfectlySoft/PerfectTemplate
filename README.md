@@ -1,104 +1,69 @@
-# PerfectTemplate [简体中文](README.zh_CN.md)
+# PerfectTemplate
 
-<p align="center">
-    <a href="http://perfect.org/get-involved.html" target="_blank">
-        <img src="http://perfect.org/assets/github/perfect_github_2_0_0.jpg" alt="Get Involed with Perfect!" width="854" />
-    </a>
-</p>
+A reference application demonstrating this ecosystem end to end. It's a small blog-style "Posts"
+CRUD web app that wires together **Perfect-NIO**, **Perfect-CRUD**, **Perfect-MySQL**, and
+**Perfect-Logger** — JSON API, MySQL persistence, structured logging, and a static browser UI, all
+in one place. Nothing else here depends on this repo; it exists to demonstrate the four libraries
+working together and as a starting point for new apps built on them.
 
-<p align="center">
-    <a href="https://github.com/PerfectlySoft/Perfect" target="_blank">
-        <img src="http://www.perfect.org/github/Perfect_GH_button_1_Star.jpg" alt="Star Perfect On Github" />
-    </a>  
-    <a href="http://stackoverflow.com/questions/tagged/perfect" target="_blank">
-        <img src="http://www.perfect.org/github/perfect_gh_button_2_SO.jpg" alt="Stack Overflow" />
-    </a>  
-    <a href="https://twitter.com/perfectlysoft" target="_blank">
-        <img src="http://www.perfect.org/github/Perfect_GH_button_3_twit.jpg" alt="Follow Perfect on Twitter" />
-    </a>  
-    <a href="http://perfect.ly" target="_blank">
-        <img src="http://www.perfect.org/github/Perfect_GH_button_4_slack.jpg" alt="Join the Perfect Slack" />
-    </a>
-</p>
+The pre-Swift-6 version of this package is preserved on the [`legacy`](../../tree/legacy) branch.
 
-<p align="center">
-    <a href="https://developer.apple.com/swift/" target="_blank">
-        <img src="https://img.shields.io/badge/Swift-5.0-orange.svg?style=flat" alt="Swift 5.0">
-    </a>
-    <a href="https://developer.apple.com/swift/" target="_blank">
-        <img src="https://img.shields.io/badge/Platforms-macOS%20%7C%20Linux%20-lightgray.svg?style=flat" alt="Platforms macOS | Linux">
-    </a>
-    <a href="http://perfect.org/licensing.html" target="_blank">
-        <img src="https://img.shields.io/badge/License-Apache-lightgrey.svg?style=flat" alt="License Apache">
-    </a>
-    <a href="http://twitter.com/PerfectlySoft" target="_blank">
-        <img src="https://img.shields.io/badge/Twitter-@PerfectlySoft-blue.svg?style=flat" alt="PerfectlySoft Twitter">
-    </a>
-    <a href="http://perfect.ly" target="_blank">
-        <img src="http://perfect.ly/badge.svg" alt="Slack Status">
-    </a>
-</p>
+## Requirements
 
-Perfect Empty Starter Project
+- **Swift tools version:** 6.2
+- **Platform:** macOS 12+ (`.macOS(.v12)`) — no Linux or other platform target is currently declared
+- A reachable **MySQL** server (the app starts even if MySQL is unreachable, but database-backed routes will error until a connection is available)
 
-This repository holds a blank Perfect project which can be cloned to serve as a starter for new work. It builds with Swift Package Manager and produces a stand-alone HTTP executable.
+## Dependencies
 
-## Compatibility with Swift
+| Package | Products used |
+|---|---|
+| [Perfect-NIO](https://github.com/PerfectlySoft/Perfect-NIO) | `PerfectNIO`, `PerfectNIOCRUD` |
+| [Perfect-CRUD](https://github.com/PerfectlySoft/Perfect-CRUD) | `PerfectCRUD` |
+| [Perfect-MySQL](https://github.com/PerfectlySoft/Perfect-MySQL) | `PerfectMySQL` |
+| [Perfect-Logger](https://github.com/PerfectlySoft/Perfect-Logger) | `PerfectLogger` |
 
-The master branch of this project currently compiles with **Xcode 10** and the **Swift 4.1** or higher toolchain on Ubuntu.
+## What it does
 
-## Building & Running
+- **`main.swift`** bootstraps `PerfectLogger` (console + rolling file), runs schema setup for the `posts` MySQL table (non-fatal if MySQL is down), builds routes, and starts a `PerfectNIO` `Server` on `Config.port`.
+- **API routes** (`Sources/App/Routes/APIRoutes.swift`), backed by a MySQL-persisted `Post` model via PerfectCRUD:
+  - `GET /api/health` — health check, no database
+  - `GET /api/posts` — list all posts
+  - `POST /api/posts` — create a post
+  - `GET /api/posts/:id` — get one post
+  - `PUT /api/posts/:id` — partial update
+  - `DELETE /api/posts/:id` — delete a post
+  - `GET /api/dbsetup` — re-run schema setup
+- **Web routes** (`Sources/App/Routes/WebRoutes.swift`) serve `webroot/index.html`, `webroot/posts.html` (a browser CRUD UI), and `webroot/static/**`.
 
-The following will clone and build an empty starter project and launch the server on port 8181.
+## Configuration
 
-```
-git clone https://github.com/PerfectlySoft/PerfectTemplate.git
-cd PerfectTemplate
+Everything is environment-variable driven with sane defaults (see `Sources/App/Config.swift`):
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `PORT` | `9191` | HTTP server port |
+| `DB_HOST` | `127.0.0.1` | MySQL host |
+| `DB_NAME` | `perfect_template` | MySQL database name |
+| `DB_USER` | `root` | MySQL user |
+| `DB_PASS` | *(empty)* | MySQL password |
+| `LOG_FILE` | `./perfect-template.log` | Rolling log file path |
+| `LOG_LEVEL` | `info` | `debug` / `info` / `warning` / `error` / `critical` |
+
+## Running
+
+```sh
 swift run
 ```
 
-You should see the following output:
+Or with overrides:
 
-```
-[INFO] Starting HTTP server localhost on 0.0.0.0:8181
-```
-
-This means the server is running and waiting for connections. Access [http://localhost:8181/](http://127.0.0.1:8181/) to see the greeting. Hit control-c to terminate the server.
-
-## Starter Content
-
-The template file contains a simple "hello, world!" request handler and shows how to serve static files, and compress outgoing content.
-
-```swift
-import PerfectHTTP
-import PerfectHTTPServer
-
-// An example request handler.
-// This 'handler' function can be referenced directly in the configuration below.
-func handler(request: HTTPRequest, response: HTTPResponse) {
-	// Respond with a simple message.
-	response.setHeader(.contentType, value: "text/html")
-	response.appendBody(string: "<html><title>Hello, world!</title><body>Hello, world!</body></html>")
-	// Ensure that response.completed() is called when your processing is done.
-	response.completed()
-}
-
-// Configure one server which:
-//	* Serves the hello world message at <host>:<port>/
-//	* Serves static files out of the "./webroot"
-//		directory (which must be located in the current working directory).
-//	* Performs content compression on outgoing data when appropriate.
-var routes = Routes()
-routes.add(method: .get, uri: "/", handler: handler)
-routes.add(method: .get, uri: "/**",
-		   handler: StaticFileHandler(documentRoot: "./webroot", allowResponseFilters: true).handleRequest)
-try HTTPServer.launch(name: "localhost",
-					  port: 8181,
-					  routes: routes,
-					  responseFilters: [
-						(PerfectHTTPServer.HTTPFilter.contentCompression(data: [:]), HTTPFilterPriority.high)])
-
+```sh
+PORT=9090 DB_NAME=myapp DB_USER=root LOG_LEVEL=debug swift run
 ```
 
-## Further Information
-For more information on the Perfect project, please visit [perfect.org](http://perfect.org).
+Then visit `http://localhost:9191` (or your configured `PORT`) for the browser UI, or hit the `/api/*` routes directly.
+
+## Status
+
+This is a small, currently-maintained reference app — not an abandoned scaffold. It's kept in sync with the current APIs of its four dependencies (Perfect-NIO, Perfect-CRUD, Perfect-MySQL, Perfect-Logger) as they evolve.
