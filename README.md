@@ -15,8 +15,9 @@ The pre-Swift-6 version of this package is preserved on the [`legacy`](https://g
   - macOS: `brew install mysql-client pkgconf`, then
     `export PKG_CONFIG_PATH="$(brew --prefix mysql-client)/lib/pkgconfig"` (the formula is keg-only)
   - Debian/Ubuntu: `apt-get install libmysqlclient-dev pkg-config`
-- A MySQL server, 5.7.8 or later (the app sets `max_execution_time`; tested with 8.4). The quick
-  start runs one in a container.
+- A MySQL 5.7.8+ or MariaDB 10.1+ server (tested with MySQL 8.4 and MariaDB 11.8). The quick
+  start runs MySQL in a container; `mariadb:11.8` works the same way with `MARIADB_*`
+  variables in place of `MYSQL_*`.
 
 On macOS the linker may warn that Homebrew's `libmysqlclient` was built for a newer macOS than
 the package's macOS 12 deployment target. The app still builds and runs on the machine it was
@@ -129,7 +130,7 @@ Errors are plain text with the status code saying what went wrong:
 | 404 | No post with that id (or the id isn't a UUID), or no such page or file |
 | 413 | The request body is over 256 KiB |
 | 415 | `POST` or `PUT` without `Content-Type: application/json` |
-| 503 | "Database unavailable.": no connection to MySQL could be opened within 5 seconds, or one failed in the last 2 seconds. "Database busy.": MySQL gave up on the statement after waiting 20 seconds for a lock, or a read ran over 20 seconds; nothing was written |
+| 503 | "Database unavailable.": no connection to MySQL could be opened within 5 seconds, or one failed in the last 2 seconds. "Database busy.": the server gave up on the statement after waiting 20 seconds for a lock, or after it ran 20 seconds (on MySQL only a SELECT is limited; on MariaDB every statement is). Nothing was written, since each request's statements autocommit; code that adds explicit transactions has to roll back itself |
 | 500 | Anything else, such as a failed query or no answer from MySQL within 30 seconds; the details go to the log, not the client |
 
 ## How it's put together
@@ -143,10 +144,11 @@ Errors are plain text with the status code saying what went wrong:
   when MySQL is slow or a table is locked, at most 16 requests wait on it while the health
   check, pages and other requests keep answering. Connecting times out after 5 seconds, and
   after a failed attempt requests answer 503 at once for 2 seconds rather than each waiting
-  again. Each connection tells MySQL to give up on a statement that waits over 20 seconds for a
-  lock, and on a SELECT that runs over 20 seconds, before the client's own 30-second read
-  timeout: a request that fails that way has not written anything, and MySQL isn't left
-  working on a session nobody is waiting for. It opens a connection per request; for a busy
+  again. Each connection tells the server to give up on a statement that waits over 20 seconds
+  for a lock, or runs over 20 seconds (MySQL's `max_execution_time` limits only SELECTs;
+  MariaDB's `max_statement_time` limits every statement), before the client's own 30-second
+  read timeout: a request that fails that way has not written anything, and the server isn't
+  left working on a session nobody is waiting for. It opens a connection per request; for a busy
   service, look at PerfectCRUD's `DatabaseConnectionPool`.
 - `Routes/APIRoutes.swift` is the JSON API, with input validation and error mapping.
 - `Routes/WebRoutes.swift` serves the pages and static files. Perfect-NIO refuses any request
