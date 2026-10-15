@@ -105,15 +105,17 @@
 <div class="overlay" id="overlay">
     <div class="modal">
         <h3 id="modal-title">New Post</h3>
+        <!-- No maxlength here: browsers count UTF-16 units, the server counts characters.
+             The server checks the limits and its message shows in the error bar. -->
         <form id="post-form">
             <input type="hidden" id="editing-id">
             <div class="field">
                 <label for="f-title">Title</label>
-                <input type="text" id="f-title" placeholder="Enter a title" required maxlength="200" autocomplete="off">
+                <input type="text" id="f-title" placeholder="Enter a title" required autocomplete="off">
             </div>
             <div class="field">
                 <label for="f-body">Body</label>
-                <textarea id="f-body" placeholder="Write something…" maxlength="20000"></textarea>
+                <textarea id="f-body" placeholder="Write something…"></textarea>
             </div>
             <div class="form-actions">
                 <button type="button" class="btn btn-ghost" id="cancel-btn">Cancel</button>
@@ -217,7 +219,7 @@ async function savePost(e) {
     e.preventDefault();
     const id    = document.getElementById('editing-id').value;
     const title = document.getElementById('f-title').value.trim();
-    const body  = document.getElementById('f-body').value.trim();
+    const body  = document.getElementById('f-body').value;
     const btn   = document.getElementById('save-btn');
 
     btn.disabled = true;
