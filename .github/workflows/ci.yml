@@ -36,6 +36,8 @@ jobs:
       # The job runs in a container, so the service is reached by name on its own port.
       DB_HOST: mysql
       DB_PORT: "3306"
+      # Dates must round-trip whatever the process's time zone is.
+      TZ: America/Denver
     steps:
       - uses: actions/checkout@v7
 
@@ -64,6 +66,8 @@ jobs:
     name: macOS (Xcode ${{ matrix.xcode }}, ${{ matrix.configuration }})
     runs-on: macos-26
     timeout-minutes: 30
+    env:
+      TZ: America/Denver
     strategy:
       fail-fast: false
       matrix:

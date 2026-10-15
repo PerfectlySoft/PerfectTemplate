@@ -5,7 +5,7 @@ CRUD web app that wires together **Perfect-NIO**, **Perfect-CRUD**, **Perfect-My
 **Perfect-Logger**: a JSON API, MySQL persistence, structured logging, and a static browser UI.
 Copy it as the starting point for a new app built on them.
 
-The pre-Swift-6 version of this package is preserved on the [`legacy`](../../tree/legacy) branch.
+The pre-Swift-6 version of this package is preserved on the [`legacy`](https://github.com/PerfectlySoft/PerfectTemplate/tree/legacy) branch.
 
 ## Requirements
 
@@ -29,6 +29,7 @@ built on.
 | [Perfect-CRUD](https://github.com/PerfectlySoft/Perfect-CRUD) | 3.1.0 | `PerfectCRUD` |
 | [Perfect-MySQL](https://github.com/PerfectlySoft/Perfect-MySQL) | 4.0.0 | `PerfectMySQL` |
 | [Perfect-Logger](https://github.com/PerfectlySoft/Perfect-Logger) | 4.0.0 | `PerfectLogger` |
+| [swift-nio](https://github.com/apple/swift-nio) | 2.65.0 | `NIOPosix` (already used by Perfect-NIO) |
 
 Versions are minimums (`from:`), so `swift package update` picks up compatible releases.
 
@@ -64,7 +65,8 @@ curl http://localhost:9191/api/posts
 ```
 
 The `Post` table is created on the first successful connection. If MySQL
-isn't reachable the server starts anyway: database routes answer 503 until it is.
+isn't reachable the server starts anyway: database routes answer 503 until it is. The app
+remembers that the table exists, so if you drop it while the app runs, restart the app.
 
 ## Configuration
 
@@ -73,15 +75,18 @@ defaults match the quick start container above.
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `PORT` | `9191` | HTTP port (the server listens on all interfaces) |
+| `PORT` | `9191` | HTTP port, 1–65535 (the server listens on all interfaces) |
 | `DB_HOST` | `127.0.0.1` | MySQL host |
-| `DB_PORT` | `13306` | MySQL port. Set `3306` for a server on the standard port |
+| `DB_PORT` | `13306` | MySQL port, 1–65535. Set `3306` for a server on the standard port |
 | `DB_NAME` | `perfect_template` | MySQL database; it must exist |
 | `DB_USER` | `perfect` | MySQL user |
 | `DB_PASS` | `perfect` | MySQL password |
 | `WEBROOT` | `webroot` | Directory with the HTML pages and `static/`, relative to the working directory |
 | `LOG_FILE` | `./perfect-template.log` | File the log is appended to |
-| `LOG_LEVEL` | `info` | `debug`, `info`, `warning`, `error` or `critical` |
+| `LOG_LEVEL` | `info` | `debug`, `info`, `warning`, `error` or `critical`. `debug` also logs the SQL PerfectCRUD runs |
+
+A `PORT` or `DB_PORT` that isn't a whole number from 1 to 65535 stops the app at launch with a
+message saying so.
 
 For example, against an existing server:
 
@@ -96,15 +101,18 @@ from disk at request time. In Xcode, set the scheme's working directory to the p
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/` | Overview page (`webroot/index.html`) |
-| `GET` | `/posts` | Browser UI for the API (`webroot/posts.html`) |
-| `GET` | `/static/**` | Files under `webroot/static/` |
+| `GET`, `HEAD` | `/` | Overview page (`webroot/index.html`) |
+| `GET`, `HEAD` | `/posts` | Browser UI for the API (`webroot/posts.html`) |
+| `GET`, `HEAD` | `/static/**` | Files under `webroot/static/` |
 | `GET` | `/api/health` | Health check; doesn't touch the database |
 | `GET` | `/api/posts` | All posts, newest first |
 | `POST` | `/api/posts` | Create a post: `{"title": "…", "body": "…"}` (`body` optional) |
 | `GET` | `/api/posts/:id` | One post |
 | `PUT` | `/api/posts/:id` | Update `title`, `body`, or both |
 | `DELETE` | `/api/posts/:id` | Delete a post |
+
+`POST` and `PUT` take a JSON body sent with `Content-Type: application/json`. A `PUT` writes
+only the fields it sends, so two clients updating different fields don't undo each other.
 
 A post looks like this; `id` is a UUID and `createdAt` an ISO 8601 time in UTC:
 
@@ -116,19 +124,24 @@ Errors are plain text with the status code saying what went wrong:
 
 | Status | When |
 |---|---|
-| 400 | The body isn't valid JSON for the route, or the title is empty, longer than 200 characters or more than one line, or the body is longer than 20,000 characters |
-| 404 | No post with that id (or the id isn't a UUID) |
+| 400 | The JSON doesn't fit the route (for example, no `title` on create); the title is empty or only invisible characters, over 200 characters, or contains a control character, line or paragraph separator, or bidirectional control; or the body is over 20,000 characters. Also any request path with a `..` segment |
+| 404 | No post with that id (or the id isn't a UUID), or no such page or file |
 | 413 | The request body is over 256 KiB |
-| 503 | MySQL can't be reached |
-| 500 | Anything else; the details go to the log, not the client |
+| 415 | `POST` or `PUT` without `Content-Type: application/json` |
+| 503 | No connection to MySQL could be opened within 5 seconds |
+| 500 | Anything else, such as a query that fails or takes over 30 seconds to answer; the details go to the log, not the client |
 
 ## How it's put together
 
-- `main.swift` bootstraps PerfectLogger (console and file), connects once so the schema exists,
-  and starts the Perfect-NIO `Server` with a 256 KiB request body limit.
+- `main.swift` checks the configuration, bootstraps PerfectLogger (console and file), sends
+  PerfectCRUD's own logging to it at debug level, connects to MySQL in the background so the
+  schema exists, and starts the Perfect-NIO `Server` with a 256 KiB request body limit.
 - `DB.swift` has `withDB {}`, which opens a MySQL connection, makes sure the table exists, and
-  runs the work on a dispatch queue so blocking libmysqlclient calls stay off Swift's
-  cooperative thread pool. It opens a connection per request; for a busy service, look at
+  runs the work on a pool of 16 threads used only for the database (a swift-nio
+  `NIOThreadPool`). Blocking libmysqlclient calls stay off Swift's cooperative thread pool, and
+  when MySQL is slow or a table is locked, at most 16 requests wait on it while the health
+  check, pages and other requests keep answering. Connections time out after 5 seconds and
+  reads and writes after 30. It opens a connection per request; for a busy service, look at
   PerfectCRUD's `DatabaseConnectionPool`.
 - `Routes/APIRoutes.swift` is the JSON API, with input validation and error mapping.
 - `Routes/WebRoutes.swift` serves the pages and static files. Perfect-NIO refuses any request
