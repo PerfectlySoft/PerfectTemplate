@@ -12,9 +12,10 @@ import PerfectLogger
 /// PUT    /api/posts/:id    — partial update  (body: {"title":"…"} or {"body":"…"} or both)
 /// DELETE /api/posts/:id    — delete a post
 ///
-/// Successful responses are JSON. Errors are plain text with the matching status:
-/// 400 for invalid input, 404 for an unknown id, 413 for an oversized body,
-/// 503 when MySQL can't be reached, and 500 for anything else.
+/// POST and PUT take JSON only (Content-Type: application/json). Successful responses are
+/// JSON. Errors are plain text with the matching status: 400 for invalid input, 404 for an
+/// unknown id, 413 for an oversized body, 415 for a body that isn't JSON, 503 when no MySQL
+/// connection can be opened, and 500 for anything else.
 func apiRoutes() throws -> Routes<HTTPRequest, HTTPOutput> {
 
     // ── Health ────────────────────────────────────────────────────────────────
@@ -29,14 +30,14 @@ func apiRoutes() throws -> Routes<HTTPRequest, HTTPOutput> {
         let posts = try await withDB { db in
             // all() throws if the query fails. Iterating select() as a Sequence would
             // instead log the error and yield no rows, turning a failure into "[]".
-            try db.table(Post.self).order(descending: \Post.createdAt).select().all()
+            try db.table(Post.self).order(descending: \Post.createdAt, \Post.id).select().all()
         }
         return try json(posts)
     }
 
-    // decode() reads the JSON (or form) request body and passes it alongside the HTTPRequest.
-    // A body that doesn't fit CreatePostRequest is answered 400 by Perfect-NIO.
-    let createPost = root().POST.api.posts.decode(CreatePostRequest.self) { _, input -> HTTPOutput in
+    // decode() reads the request body and passes it alongside the HTTPRequest. A body that
+    // doesn't fit CreatePostRequest is answered 400 by Perfect-NIO.
+    let createPost = root().POST.api.posts.requireJSON().decode(CreatePostRequest.self) { _, input -> HTTPOutput in
         let post = Post(
             id: UUID(),
             title: try validTitle(input.title),
@@ -44,8 +45,7 @@ func apiRoutes() throws -> Routes<HTTPRequest, HTTPOutput> {
             createdAt: Date()
         )
         try await withDB { db in _ = try db.table(Post.self).insert(post) }
-        // String(reflecting:) quotes and escapes the title, so it stays on one log line.
-        LogFile.info("created post id=\(post.id) title=\(String(reflecting: post.title))")
+        LogFile.info("created post id=\(post.id) title=\(logSafe(post.title))")
         return try json(post, status: .created)
     }
 
@@ -66,17 +66,32 @@ func apiRoutes() throws -> Routes<HTTPRequest, HTTPOutput> {
     // still accessible after chaining decode().
     let updatePost = root().PUT.api.posts
         .wild(name: "id")
+        .requireJSON()
         .decode(UpdatePostRequest.self) { req, input -> HTTPOutput in
             let id = try postID(req.uriVariables["id"] ?? "")
             let title = try input.title.map(validTitle)
             let body = try input.body.map(validBody)
             guard let post = try await withDB({ db -> Post? in
-                let posts = db.table(Post.self)
-                guard var post = try posts.where(\Post.id == id).first() else { return nil }
-                if let title { post.title = title }
-                if let body { post.body = body }
-                try posts.where(\Post.id == id).update(post)
-                return post
+                let match = db.table(Post.self).where(\Post.id == id)
+                guard var post = try match.first() else { return nil }
+                // Write only the fields the request sent. Updating the whole row would put
+                // back the other field as read above, undoing a concurrent update to it.
+                switch (title, body) {
+                case let (title?, body?):
+                    post.title = title
+                    post.body = body
+                    try match.update(post, setKeys: \.title, \.body)
+                case let (title?, nil):
+                    post.title = title
+                    try match.update(post, setKeys: \.title)
+                case let (nil, body?):
+                    post.body = body
+                    try match.update(post, setKeys: \.body)
+                case (nil, nil):
+                    return post
+                }
+                // Read the row back, so the response shows what is stored now.
+                return try match.first()
             }) else {
                 throw notFound(id)
             }
@@ -87,10 +102,14 @@ func apiRoutes() throws -> Routes<HTTPRequest, HTTPOutput> {
     let deletePost = root().DELETE.api.posts.wild { _, segment -> HTTPOutput in
         let id = try postID(segment)
         let deleted = try await withDB { db -> Bool in
-            let match = db.table(Post.self).where(\Post.id == id)
-            guard try match.count() > 0 else { return false }
-            try match.delete()
-            return true
+            // PerfectCRUD's typed delete() doesn't report how many rows it removed; the dynamic
+            // API does, so one statement both deletes and tells us whether the post existed.
+            let result = try db.mutate(DynamicMutation(
+                action: .delete,
+                table: "Post",
+                predicates: [DynamicPredicate(field: "id", comparison: .equal, value: .string(id.uuidString))]
+            ))
+            return result.affectedRows > 0
         }
         guard deleted else { throw notFound(id) }
         LogFile.info("deleted post id=\(id)")
@@ -102,6 +121,24 @@ func apiRoutes() throws -> Routes<HTTPRequest, HTTPOutput> {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+extension Routes {
+    /// Answers 415 unless the request says its body is JSON. Besides keeping the API honest,
+    /// this stops another site's page from creating posts with a plain HTML form or a
+    /// text/plain fetch, which browsers send cross-site without asking the server first.
+    func requireJSON() -> Routes<InType, OutType> {
+        request { output, req in
+            let mediaType = req.contentType?
+                .split(separator: ";").first?
+                .trimmingCharacters(in: .whitespaces)
+                .lowercased()
+            guard mediaType == "application/json" else {
+                throw ErrorOutput(status: .unsupportedMediaType, description: "Send the body as JSON with Content-Type: application/json.")
+            }
+            return output
+        }
+    }
+}
+
 /// JSON response with dates as ISO 8601 strings ("2026-10-15T17:04:05Z").
 /// (Perfect-NIO's JSONOutput uses a default JSONEncoder, which writes dates as numbers.)
 func json<T: Encodable>(_ value: T, status: HTTPResponseStatus = .ok) throws -> HTTPOutput {
@@ -111,6 +148,12 @@ func json<T: Encodable>(_ value: T, status: HTTPResponseStatus = .ok) throws -> 
         head: HTTPHead(status: status, headers: HTTPHeaders([("Content-Type", "application/json")])),
         body: Array(try encoder.encode(value))
     )
+}
+
+/// User text for a log line: quoted, with everything outside printable ASCII escaped, so it
+/// can't break the line or hide behind invisible or reordering characters.
+private func logSafe(_ text: String) -> String {
+    "\"" + text.unicodeScalars.map { $0.escaped(asASCII: true) }.joined() + "\""
 }
 
 /// Ids are UUIDs. Anything else can't name a post, so it is a 404 without a database query.
@@ -125,24 +168,47 @@ private func notFound(_ id: UUID) -> ErrorOutput {
     ErrorOutput(status: .notFound, description: "No post with id \(id).")
 }
 
-/// A title is one non-empty line of at most `PostLimits.titleLength` characters.
+/// A title is one line of at most `PostLimits.titleLength` characters with something visible
+/// in it. Control characters, line and paragraph separators, and the bidirectional controls
+/// that can make text display in a different order than it is stored are refused. Other
+/// invisible format characters are allowed (emoji sequences need the zero-width joiner), but
+/// not on their own.
 private func validTitle(_ title: String) throws -> String {
     let title = title.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !title.isEmpty else {
+    try checkLength(title, limit: PostLimits.titleLength, name: "Title")
+    guard !title.unicodeScalars.contains(where: isRefusedInTitle) else {
+        throw ErrorOutput(status: .badRequest, description: "Title must be a single line of plain text.")
+    }
+    guard title.unicodeScalars.contains(where: isVisible) else {
         throw ErrorOutput(status: .badRequest, description: "Title must not be empty.")
-    }
-    guard title.count <= PostLimits.titleLength else {
-        throw ErrorOutput(status: .badRequest, description: "Title must be at most \(PostLimits.titleLength) characters.")
-    }
-    guard !title.unicodeScalars.contains(where: { $0.properties.generalCategory == .control }) else {
-        throw ErrorOutput(status: .badRequest, description: "Title must be a single line.")
     }
     return title
 }
 
 private func validBody(_ body: String) throws -> String {
-    guard body.count <= PostLimits.bodyLength else {
-        throw ErrorOutput(status: .badRequest, description: "Body must be at most \(PostLimits.bodyLength) characters.")
-    }
+    try checkLength(body, limit: PostLimits.bodyLength, name: "Body")
     return body
+}
+
+/// Limits characters, and Unicode scalars to eight per character on average (an emoji family
+/// is seven), so one character stacked with thousands of combining marks can't slip through.
+private func checkLength(_ text: String, limit: Int, name: String) throws {
+    guard text.count <= limit, text.unicodeScalars.count <= limit * 8 else {
+        throw ErrorOutput(status: .badRequest, description: "\(name) must be at most \(limit) characters.")
+    }
+}
+
+private func isRefusedInTitle(_ scalar: Unicode.Scalar) -> Bool {
+    switch scalar.value {
+    case 0x2028, 0x2029:                  // line and paragraph separators
+        return true
+    case 0x202A...0x202E, 0x2066...0x2069: // bidirectional embedding, override and isolate controls
+        return true
+    default:
+        return scalar.properties.generalCategory == .control
+    }
+}
+
+private func isVisible(_ scalar: Unicode.Scalar) -> Bool {
+    !scalar.properties.isWhitespace && scalar.properties.generalCategory != .format
 }
