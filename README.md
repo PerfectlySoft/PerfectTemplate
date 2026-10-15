@@ -1,104 +1,166 @@
-# PerfectTemplate [简体中文](README.zh_CN.md)
+# PerfectTemplate
 
-<p align="center">
-    <a href="http://perfect.org/get-involved.html" target="_blank">
-        <img src="http://perfect.org/assets/github/perfect_github_2_0_0.jpg" alt="Get Involed with Perfect!" width="854" />
-    </a>
-</p>
+A reference application for the Perfect Swift 6 libraries. It's a small blog-style "Posts"
+CRUD web app that wires together **Perfect-NIO**, **Perfect-CRUD**, **Perfect-MySQL**, and
+**Perfect-Logger**: a JSON API, MySQL persistence, structured logging, and a static browser UI.
+Copy it as the starting point for a new app built on them.
 
-<p align="center">
-    <a href="https://github.com/PerfectlySoft/Perfect" target="_blank">
-        <img src="http://www.perfect.org/github/Perfect_GH_button_1_Star.jpg" alt="Star Perfect On Github" />
-    </a>  
-    <a href="http://stackoverflow.com/questions/tagged/perfect" target="_blank">
-        <img src="http://www.perfect.org/github/perfect_gh_button_2_SO.jpg" alt="Stack Overflow" />
-    </a>  
-    <a href="https://twitter.com/perfectlysoft" target="_blank">
-        <img src="http://www.perfect.org/github/Perfect_GH_button_3_twit.jpg" alt="Follow Perfect on Twitter" />
-    </a>  
-    <a href="http://perfect.ly" target="_blank">
-        <img src="http://www.perfect.org/github/Perfect_GH_button_4_slack.jpg" alt="Join the Perfect Slack" />
-    </a>
-</p>
+The pre-Swift-6 version of this package is preserved on the [`legacy`](https://github.com/PerfectlySoft/PerfectTemplate/tree/legacy) branch.
 
-<p align="center">
-    <a href="https://developer.apple.com/swift/" target="_blank">
-        <img src="https://img.shields.io/badge/Swift-5.0-orange.svg?style=flat" alt="Swift 5.0">
-    </a>
-    <a href="https://developer.apple.com/swift/" target="_blank">
-        <img src="https://img.shields.io/badge/Platforms-macOS%20%7C%20Linux%20-lightgray.svg?style=flat" alt="Platforms macOS | Linux">
-    </a>
-    <a href="http://perfect.org/licensing.html" target="_blank">
-        <img src="https://img.shields.io/badge/License-Apache-lightgrey.svg?style=flat" alt="License Apache">
-    </a>
-    <a href="http://twitter.com/PerfectlySoft" target="_blank">
-        <img src="https://img.shields.io/badge/Twitter-@PerfectlySoft-blue.svg?style=flat" alt="PerfectlySoft Twitter">
-    </a>
-    <a href="http://perfect.ly" target="_blank">
-        <img src="http://perfect.ly/badge.svg" alt="Slack Status">
-    </a>
-</p>
+## Requirements
 
-Perfect Empty Starter Project
+- Swift 6.2 or later (swift-tools-version 6.2)
+- macOS 12 or later, or Linux (CI builds on Ubuntu 24.04)
+- The MySQL client library and `pkg-config`:
+  - macOS: `brew install mysql-client pkgconf`, then
+    `export PKG_CONFIG_PATH="$(brew --prefix mysql-client)/lib/pkgconfig"` (the formula is keg-only)
+  - Debian/Ubuntu: `apt-get install libmysqlclient-dev pkg-config`
+- A MySQL 5.7.8+ or MariaDB 10.1+ server (tested with MySQL 8.4 and MariaDB 11.8). The quick
+  start runs MySQL in a container; `mariadb:11.8` works the same way with `MARIADB_*`
+  variables in place of `MYSQL_*`.
 
-This repository holds a blank Perfect project which can be cloned to serve as a starter for new work. It builds with Swift Package Manager and produces a stand-alone HTTP executable.
+On macOS the linker may warn that Homebrew's `libmysqlclient` was built for a newer macOS than
+the package's macOS 12 deployment target. The app still builds and runs on the machine it was
+built on.
 
-## Compatibility with Swift
+## Dependencies
 
-The master branch of this project currently compiles with **Xcode 10** and the **Swift 4.1** or higher toolchain on Ubuntu.
+| Package | Version | Products used |
+|---|---|---|
+| [Perfect-NIO](https://github.com/PerfectlySoft/Perfect-NIO) | 0.1.0 | `PerfectNIO` |
+| [Perfect-CRUD](https://github.com/PerfectlySoft/Perfect-CRUD) | 3.1.0 | `PerfectCRUD` |
+| [Perfect-MySQL](https://github.com/PerfectlySoft/Perfect-MySQL) | 4.0.0 | `PerfectMySQL` |
+| [Perfect-Logger](https://github.com/PerfectlySoft/Perfect-Logger) | 4.0.0 | `PerfectLogger` |
+| [swift-nio](https://github.com/apple/swift-nio) | 2.65.0 | `NIOPosix` (already used by Perfect-NIO) |
 
-## Building & Running
+Versions are minimums (`from:`), so `swift package update` picks up compatible releases.
 
-The following will clone and build an empty starter project and launch the server on port 8181.
+## Quick start
 
+Start MySQL in a container. It is published on host port **13306**, not 3306, so it can't
+collide with a MySQL server you already run; the app's defaults point at it.
+
+```sh
+docker run -d --name perfect-template-mysql -p 13306:3306 \
+    -e MYSQL_ROOT_PASSWORD=change-me \
+    -e MYSQL_DATABASE=perfect_template \
+    -e MYSQL_USER=perfect -e MYSQL_PASSWORD=perfect \
+    mysql:8.4
 ```
-git clone https://github.com/PerfectlySoft/PerfectTemplate.git
-cd PerfectTemplate
+
+(With Apple's `container` tool, the same command works with `container run`.) Give MySQL a few
+seconds to initialise, then build and run the app from the package root:
+
+```sh
 swift run
 ```
 
-You should see the following output:
+Open <http://localhost:9191> for the overview page and <http://localhost:9191/posts> for the
+browser UI, or use the API:
 
-```
-[INFO] Starting HTTP server localhost on 0.0.0.0:8181
-```
-
-This means the server is running and waiting for connections. Access [http://localhost:8181/](http://127.0.0.1:8181/) to see the greeting. Hit control-c to terminate the server.
-
-## Starter Content
-
-The template file contains a simple "hello, world!" request handler and shows how to serve static files, and compress outgoing content.
-
-```swift
-import PerfectHTTP
-import PerfectHTTPServer
-
-// An example request handler.
-// This 'handler' function can be referenced directly in the configuration below.
-func handler(request: HTTPRequest, response: HTTPResponse) {
-	// Respond with a simple message.
-	response.setHeader(.contentType, value: "text/html")
-	response.appendBody(string: "<html><title>Hello, world!</title><body>Hello, world!</body></html>")
-	// Ensure that response.completed() is called when your processing is done.
-	response.completed()
-}
-
-// Configure one server which:
-//	* Serves the hello world message at <host>:<port>/
-//	* Serves static files out of the "./webroot"
-//		directory (which must be located in the current working directory).
-//	* Performs content compression on outgoing data when appropriate.
-var routes = Routes()
-routes.add(method: .get, uri: "/", handler: handler)
-routes.add(method: .get, uri: "/**",
-		   handler: StaticFileHandler(documentRoot: "./webroot", allowResponseFilters: true).handleRequest)
-try HTTPServer.launch(name: "localhost",
-					  port: 8181,
-					  routes: routes,
-					  responseFilters: [
-						(PerfectHTTPServer.HTTPFilter.contentCompression(data: [:]), HTTPFilterPriority.high)])
-
+```sh
+curl http://localhost:9191/api/health
+curl -X POST http://localhost:9191/api/posts \
+     -H "Content-Type: application/json" \
+     -d '{"title":"Hello","body":"World"}'
+curl http://localhost:9191/api/posts
 ```
 
-## Further Information
-For more information on the Perfect project, please visit [perfect.org](http://perfect.org).
+The `Post` table is created on the first successful connection. If MySQL
+isn't reachable the server starts anyway: database routes answer 503 until it is. The app
+remembers that the table exists, so if you drop it while the app runs, restart the app.
+
+## Configuration
+
+Everything comes from environment variables (see `Sources/App/Config.swift`). The database
+defaults match the quick start container above.
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `PORT` | `9191` | HTTP port, 1–65535 (the server listens on all interfaces) |
+| `DB_HOST` | `127.0.0.1` | MySQL host |
+| `DB_PORT` | `13306` | MySQL port, 1–65535. Set `3306` for a server on the standard port |
+| `DB_NAME` | `perfect_template` | MySQL database; it must exist |
+| `DB_USER` | `perfect` | MySQL user |
+| `DB_PASS` | `perfect` | MySQL password |
+| `WEBROOT` | `webroot` | Directory with the HTML pages and `static/`, relative to the working directory |
+| `LOG_FILE` | `./perfect-template.log` | File the log is appended to |
+| `LOG_LEVEL` | `info` | `debug`, `info`, `warning`, `error` or `critical`. `debug` also logs the SQL PerfectCRUD runs |
+
+A `PORT` or `DB_PORT` that isn't a whole number from 1 to 65535 stops the app at launch with a
+message saying so.
+
+For example, against an existing server:
+
+```sh
+DB_HOST=db.internal DB_PORT=3306 DB_USER=app DB_PASS=secret swift run
+```
+
+Run from the package root (or set `WEBROOT` to an absolute path), since the pages are read
+from disk at request time. In Xcode, set the scheme's working directory to the package folder.
+
+## Routes
+
+| Method | Path | Description |
+|---|---|---|
+| `GET`, `HEAD` | `/` | Overview page (`webroot/index.html`) |
+| `GET`, `HEAD` | `/posts` | Browser UI for the API (`webroot/posts.html`) |
+| `GET`, `HEAD` | `/static/**` | Files under `webroot/static/` |
+| `GET` | `/api/health` | Health check; doesn't touch the database |
+| `GET` | `/api/posts` | All posts, newest first |
+| `POST` | `/api/posts` | Create a post: `{"title": "…", "body": "…"}` (`body` optional) |
+| `GET` | `/api/posts/:id` | One post |
+| `PUT` | `/api/posts/:id` | Update `title`, `body`, or both |
+| `DELETE` | `/api/posts/:id` | Delete a post |
+
+`POST` and `PUT` take a JSON body sent with `Content-Type: application/json`. A `PUT` writes
+only the fields it sends, so two clients updating different fields don't undo each other.
+
+A post looks like this; `id` is a UUID and `createdAt` an ISO 8601 time in UTC:
+
+```json
+{"id":"9C3A0D2E-0B7C-4C1E-9E55-2F1F7A0B6E1D","title":"Hello","body":"World","createdAt":"2026-10-15T16:10:51Z"}
+```
+
+Errors are plain text with the status code saying what went wrong:
+
+| Status | When |
+|---|---|
+| 400 | The JSON doesn't fit the route (for example, no `title` on create); the title is empty or only invisible characters, over 200 characters or 2,000 Unicode code points, or contains a control character, line or paragraph separator, or bidirectional control; or the body is over 20,000 characters or 100,000 code points. Also any request path with a `..` segment |
+| 404 | No post with that id (or the id isn't a UUID), or no such page or file |
+| 413 | The request body is over 256 KiB |
+| 415 | `POST` or `PUT` without `Content-Type: application/json` |
+| 503 | "Database unavailable.": no connection to MySQL could be opened within 5 seconds, or one failed in the last 2 seconds. "Database busy.": the server gave up on the statement after waiting 20 seconds for a lock, or after it ran 20 seconds (on MySQL only a SELECT is limited; on MariaDB every statement is). Nothing was written, since each request's statements autocommit; code that adds explicit transactions has to roll back itself |
+| 500 | Anything else, such as a failed query or no answer from MySQL within 30 seconds; the details go to the log, not the client |
+
+## How it's put together
+
+- `main.swift` checks the configuration, bootstraps PerfectLogger (console and file), sends
+  PerfectCRUD's own logging to it at debug level, connects to MySQL in the background so the
+  schema exists, and starts the Perfect-NIO `Server` with a 256 KiB request body limit.
+- `DB.swift` has `withDB {}`, which opens a MySQL connection, makes sure the table exists, and
+  runs the work on a pool of 16 threads used only for the database (a swift-nio
+  `NIOThreadPool`). Blocking libmysqlclient calls stay off Swift's cooperative thread pool, and
+  when MySQL is slow or a table is locked, at most 16 requests wait on it while the health
+  check, pages and other requests keep answering. Connecting times out after 5 seconds, and
+  after a failed attempt requests answer 503 at once for 2 seconds rather than each waiting
+  again. Each connection tells the server to give up on a statement that waits over 20 seconds
+  for a lock, or runs over 20 seconds (MySQL's `max_execution_time` limits only SELECTs;
+  MariaDB's `max_statement_time` limits every statement), before the client's own 30-second
+  read timeout: a request that fails that way has not written anything, and the server isn't
+  left working on a session nobody is waiting for. It opens a connection per request; for a busy
+  service, look at PerfectCRUD's `DatabaseConnectionPool`.
+- `Routes/APIRoutes.swift` is the JSON API, with input validation and error mapping.
+- `Routes/WebRoutes.swift` serves the pages and static files. Perfect-NIO refuses any request
+  path with a `..` segment before routing, so static paths can't leave `webroot/static`.
+- `Models/Post.swift` is the PerfectCRUD model and request types.
+
+## Checking a running server
+
+`Scripts/smoke-test.sh` drives every API route against a running server (create, list, get,
+update, delete, and the error cases). `Scripts/smoke-test.sh --no-db` checks a server that has no
+database: health and pages answer 200 and `/api/posts` answers 503. CI runs both.
+
+## License
+
+Apache 2.0; see [LICENSE](LICENSE) ([中文](LICENSE.zh_CN)).
