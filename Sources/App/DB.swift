@@ -49,19 +49,34 @@ private let dbThreads: NIOThreadPool = {
 private let connectTimeout = 5
 /// Seconds a single read from or write to MySQL may take before the client gives up.
 private let ioTimeout = 30
-/// Seconds MySQL itself lets a statement wait for a lock, or a SELECT run. Shorter than
+/// Seconds MySQL itself lets a statement wait for a lock, or run (MySQL: SELECTs only;
+/// MariaDB: every statement). Shorter than
 /// `ioTimeout`, so MySQL abandons the statement before the client stops waiting for it: a
 /// request that fails has not written anything, and the server isn't left holding sessions.
 private let statementTimeout = 20
-/// Whether MySQL abandoned the statement because of the limits above: ER_LOCK_WAIT_TIMEOUT
-/// (1205) or ER_QUERY_TIMEOUT (3024). Perfect-MySQL's MySQLCRUDError carries only the server's
-/// message, and the connection's error code is already reset when it reaches us, so this
-/// matches MySQL's (English) message text for those two errors.
+/// Whether the server abandoned the statement because of the limits above:
+/// ER_LOCK_WAIT_TIMEOUT (1205), MySQL's ER_QUERY_TIMEOUT (3024), or MariaDB's
+/// ER_STATEMENT_TIMEOUT (1969).
+///
+/// Perfect-MySQL 4.0.0's MySQLCRUDError carries only text, and the connection's error code is
+/// already reset when the error reaches us, so this matches the servers' (English) messages.
+/// It only looks at errors Perfect-MySQL raised for a statement the server rejected, whose
+/// descriptions start with one of `serverErrorPrefixes`; anything else (say, a decoding error
+/// that quotes a stored value) is never "busy". A Perfect-MySQL release whose error carries
+/// the errno would let this check for 1205, 3024 and 1969 instead.
 private func isBusyError(_ error: any Error) -> Bool {
-    let text = String(describing: error)
-    return text.contains("Lock wait timeout exceeded")
-        || text.contains("maximum statement execution time exceeded")
+    guard let error = error as? MySQLCRUDError,
+          serverErrorPrefixes.contains(where: error.description.hasPrefix) else {
+        return false
+    }
+    return error.description.contains("Lock wait timeout exceeded")                   // 1205
+        || error.description.contains("maximum statement execution time exceeded")   // 3024
+        || error.description.contains("max_statement_time exceeded")                  // 1969
 }
+
+/// How Perfect-MySQL 4.0.0 begins the description of an error the server reported while
+/// running a statement, or while sending its rows.
+private let serverErrorPrefixes = ["Error executing statement. ", "Error reading results. "]
 
 private func connect() throws -> DB {
     try outage.check()
@@ -71,12 +86,10 @@ private func connect() throws -> DB {
     mysql.setOption(.MYSQL_OPT_READ_TIMEOUT, ioTimeout)
     mysql.setOption(.MYSQL_OPT_WRITE_TIMEOUT, ioTimeout)
     // Runs on every new connection. lock_wait_timeout covers table and metadata locks
-    // (LOCK TABLES, DDL), innodb_lock_wait_timeout row locks, and max_execution_time (in
-    // milliseconds, MySQL 5.7.8 and later) caps SELECTs.
+    // (LOCK TABLES, DDL) and innodb_lock_wait_timeout row locks, on MySQL and MariaDB alike.
     mysql.setOption(.MYSQL_INIT_COMMAND, """
         SET SESSION lock_wait_timeout = \(statementTimeout), \
-        innodb_lock_wait_timeout = \(statementTimeout), \
-        max_execution_time = \(statementTimeout * 1000)
+        innodb_lock_wait_timeout = \(statementTimeout)
         """)
     guard mysql.connect(host: Config.dbHost, user: Config.dbUser, password: Config.dbPass,
                         db: Config.dbName, port: UInt32(Config.dbPort)) else {
@@ -84,6 +97,13 @@ private func connect() throws -> DB {
         throw ErrorOutput(status: .serviceUnavailable, description: "Database unavailable.")
     }
     outage.connected()
+    // The running-time limit has a different name on each server: max_execution_time in
+    // milliseconds on MySQL 5.7.8+ (SELECTs only), max_statement_time in seconds on
+    // MariaDB 10.1+ (every statement). Neither knows the other's, so try them in turn.
+    if !mysql.query(statement: "SET SESSION max_execution_time = \(statementTimeout * 1000)"),
+       !mysql.query(statement: "SET SESSION max_statement_time = \(statementTimeout)") {
+        LogFile.warning("could not limit statement time: \(mysql.errorMessage())")
+    }
     return Database(configuration: MySQLDatabaseConfiguration(connection: mysql))
 }
 

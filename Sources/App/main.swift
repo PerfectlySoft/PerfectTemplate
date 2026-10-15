@@ -45,8 +45,10 @@ Task.detached {
 // Request bodies are held in memory, so cap them well below Perfect-NIO's 10 MiB default.
 // Larger requests are refused with 413 before their body is read.
 let server = Server(routes: try allRoutes(), port: Config.port, maxRequestBodySize: 256 * 1024)
+var listening = false
 do {
     try await server.withServer { boundPort in
+        listening = true
         LogFile.info("serving on http://localhost:\(boundPort)")
         // Serve until the process is stopped.
         while !Task.isCancelled {
@@ -54,7 +56,7 @@ do {
         }
     }
 } catch {
-    LogFile.critical("could not start: \(error)")
+    LogFile.critical(listening ? "server stopped: \(error)" : "could not start: \(error)")
     exit(1)
 }
 
