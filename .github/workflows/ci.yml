@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    # Builds the app, then runs it against a MySQL 8.4 service and drives the whole API
+    # (Scripts/smoke-test.sh).
+    name: Linux (Swift ${{ matrix.swift }}, ${{ matrix.configuration }})
+    runs-on: ubuntu-24.04
+    container: swift:${{ matrix.swift }}-noble
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        # The oldest supported Swift (swift-tools-version 6.2) and the newest.
+        swift: ["6.2", "6.4"]
+        configuration: [debug, release]
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: perfect_template
+          MYSQL_USER: perfect
+          MYSQL_PASSWORD: perfect
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1"
+          --health-interval 5s --health-timeout 5s --health-retries 30
+    env:
+      # The job runs in a container, so the service is reached by name on its own port.
+      DB_HOST: mysql
+      DB_PORT: "3306"
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install client library
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends pkg-config libmysqlclient-dev curl
+
+      - name: Toolchain
+        run: swift --version
+
+      - name: Build (warnings are errors)
+        run: swift build -c ${{ matrix.configuration }} -Xswiftc -warnings-as-errors
+
+      - name: Smoke test
+        run: |
+          bin="$(swift build -c ${{ matrix.configuration }} --show-bin-path)/PerfectTemplate"
+          "$bin" > server.log 2>&1 &
+          server=$!
+          Scripts/smoke-test.sh || { cat server.log; exit 1; }
+          kill "$server"
+
+  macos:
+    # GitHub's macOS runners have no MySQL server, so the smoke test checks that the app
+    # starts without one and answers 503 for database routes.
+    name: macOS (Xcode ${{ matrix.xcode }}, ${{ matrix.configuration }})
+    runs-on: macos-26
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        # The oldest Xcode with Swift 6.2, and the runner's default.
+        xcode: ["26.0.1", "26.6"]
+        configuration: [debug, release]
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Select Xcode
+        run: |
+          sudo xcode-select -s /Applications/Xcode_${{ matrix.xcode }}.app
+          swift --version
+
+      - name: Install client library
+        run: |
+          brew install mysql-client pkgconf
+          # mysql-client is keg-only, so pkg-config can't find mysqlclient.pc without this.
+          echo "PKG_CONFIG_PATH=$(brew --prefix mysql-client)/lib/pkgconfig" >> "$GITHUB_ENV"
+
+      # Homebrew's libmysqlclient is built for the runner's macOS, so ld warns that it is
+      # newer than the package's macOS 12 deployment target. That is a linker warning;
+      # -warnings-as-errors only applies to the Swift compiler, so it doesn't fail the build.
+      - name: Build (warnings are errors)
+        run: swift build -c ${{ matrix.configuration }} -Xswiftc -warnings-as-errors
+
+      - name: Smoke test (no database)
+        run: |
+          bin="$(swift build -c ${{ matrix.configuration }} --show-bin-path)/PerfectTemplate"
+          "$bin" > server.log 2>&1 &
+          server=$!
+          Scripts/smoke-test.sh --no-db || { cat server.log; exit 1; }
+          kill "$server"
