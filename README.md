@@ -15,7 +15,8 @@ The pre-Swift-6 version of this package is preserved on the [`legacy`](https://g
   - macOS: `brew install mysql-client pkgconf`, then
     `export PKG_CONFIG_PATH="$(brew --prefix mysql-client)/lib/pkgconfig"` (the formula is keg-only)
   - Debian/Ubuntu: `apt-get install libmysqlclient-dev pkg-config`
-- A MySQL server (8.x). The quick start runs one in a container.
+- A MySQL server, 5.7.8 or later (the app sets `max_execution_time`; tested with 8.4). The quick
+  start runs one in a container.
 
 On macOS the linker may warn that Homebrew's `libmysqlclient` was built for a newer macOS than
 the package's macOS 12 deployment target. The app still builds and runs on the machine it was
@@ -124,12 +125,12 @@ Errors are plain text with the status code saying what went wrong:
 
 | Status | When |
 |---|---|
-| 400 | The JSON doesn't fit the route (for example, no `title` on create); the title is empty or only invisible characters, over 200 characters, or contains a control character, line or paragraph separator, or bidirectional control; or the body is over 20,000 characters. Also any request path with a `..` segment |
+| 400 | The JSON doesn't fit the route (for example, no `title` on create); the title is empty or only invisible characters, over 200 characters or 2,000 Unicode code points, or contains a control character, line or paragraph separator, or bidirectional control; or the body is over 20,000 characters or 100,000 code points. Also any request path with a `..` segment |
 | 404 | No post with that id (or the id isn't a UUID), or no such page or file |
 | 413 | The request body is over 256 KiB |
 | 415 | `POST` or `PUT` without `Content-Type: application/json` |
-| 503 | No connection to MySQL could be opened within 5 seconds |
-| 500 | Anything else, such as a query that fails or takes over 30 seconds to answer; the details go to the log, not the client |
+| 503 | "Database unavailable.": no connection to MySQL could be opened within 5 seconds, or one failed in the last 2 seconds. "Database busy.": MySQL gave up on the statement after waiting 20 seconds for a lock, or a read ran over 20 seconds; nothing was written |
+| 500 | Anything else, such as a failed query or no answer from MySQL within 30 seconds; the details go to the log, not the client |
 
 ## How it's put together
 
@@ -140,9 +141,13 @@ Errors are plain text with the status code saying what went wrong:
   runs the work on a pool of 16 threads used only for the database (a swift-nio
   `NIOThreadPool`). Blocking libmysqlclient calls stay off Swift's cooperative thread pool, and
   when MySQL is slow or a table is locked, at most 16 requests wait on it while the health
-  check, pages and other requests keep answering. Connections time out after 5 seconds and
-  reads and writes after 30. It opens a connection per request; for a busy service, look at
-  PerfectCRUD's `DatabaseConnectionPool`.
+  check, pages and other requests keep answering. Connecting times out after 5 seconds, and
+  after a failed attempt requests answer 503 at once for 2 seconds rather than each waiting
+  again. Each connection tells MySQL to give up on a statement that waits over 20 seconds for a
+  lock, and on a SELECT that runs over 20 seconds, before the client's own 30-second read
+  timeout: a request that fails that way has not written anything, and MySQL isn't left
+  working on a session nobody is waiting for. It opens a connection per request; for a busy
+  service, look at PerfectCRUD's `DatabaseConnectionPool`.
 - `Routes/APIRoutes.swift` is the JSON API, with input validation and error mapping.
 - `Routes/WebRoutes.swift` serves the pages and static files. Perfect-NIO refuses any request
   path with a `..` segment before routing, so static paths can't leave `webroot/static`.
