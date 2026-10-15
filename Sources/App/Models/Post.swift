@@ -1,18 +1,28 @@
 import Foundation
 
+/// A row in the `posts` table. PerfectCRUD maps the properties to columns: `id` is the
+/// primary key (VARCHAR(36) in MySQL) and `createdAt` is a DATETIME, stored to the second.
 struct Post: Codable, Sendable {
-    var id: String
+    var id: UUID
     var title: String
     var body: String
-    var createdAt: String
+    var createdAt: Date
 }
 
+/// Body of `POST /api/posts`.
 struct CreatePostRequest: Codable, Sendable {
     var title: String
-    var body: String
+    var body: String?
 }
 
+/// Body of `PUT /api/posts/:id`. Fields left out keep their current values.
 struct UpdatePostRequest: Codable, Sendable {
     var title: String?
     var body: String?
+}
+
+/// Input limits. The server also refuses request bodies over `maxRequestBodySize` (see main.swift).
+enum PostLimits {
+    static let titleLength = 200
+    static let bodyLength = 20_000
 }
