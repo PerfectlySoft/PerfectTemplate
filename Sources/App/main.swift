@@ -1,6 +1,10 @@
 import Foundation
 import PerfectNIO
+import PerfectCRUD
 import PerfectLogger
+
+// Stop at once on a malformed PORT or DB_PORT.
+Config.validate()
 
 // Configure logging first: console + a file, at the configured level.
 // Every LogFile.* call (and any swift-log Logger inside the Perfect libraries)
@@ -13,20 +17,42 @@ PerfectLogger.bootstrap(
 LogFile.info("PerfectTemplate starting (log level \(Config.logLevel), file \(Config.logFile))")
 LogFile.info("database \(Config.dbName) on \(Config.dbHost):\(Config.dbPort) as \(Config.dbUser)")
 
-// Connect once at startup so the posts table is created and a bad configuration shows up
-// in the log right away. If MySQL is unreachable the server still starts: database routes
-// answer 503 until it is, and the first one that connects creates the table.
-do {
-    try await withDB { _ in }
-} catch {
-    LogFile.warning("MySQL is not reachable yet; database routes will answer 503 until it is")
+// PerfectCRUD prints the SQL it runs, and its own errors, to stdout. Send both to the log at
+// debug level instead: the errors that matter reach the log anyway, from the route that hit them.
+let crudToLog = CRUDLogDestination.custom { event in LogFile.debug("PerfectCRUD \(event.type): \(event.msg)") }
+CRUDLogging.queryLogDestinations = [crudToLog]
+CRUDLogging.errorLogDestinations = [crudToLog]
+
+if !FileManager.default.fileExists(atPath: "\(Config.webroot)/index.html") {
+    LogFile.warning("\(Config.webroot)/index.html not found; run from the package root or set WEBROOT")
 }
 
-let routes = try allRoutes()
-LogFile.info("serving on http://localhost:\(Config.port)")
+// Connect once in the background so the posts table is created and a bad configuration shows
+// up in the log right away, without delaying startup. If MySQL is unreachable the server still
+// runs: database routes answer 503 until it is, and the first one that connects creates the table.
+Task.detached {
+    do {
+        try await withDB { _ in }
+    } catch {
+        LogFile.warning("MySQL is not reachable yet; database routes will answer 503 until it is")
+    }
+}
+
 // Request bodies are held in memory, so cap them well below Perfect-NIO's 10 MiB default.
 // Larger requests are refused with 413 before their body is read.
-try await Server(routes: routes, port: Config.port, maxRequestBodySize: 256 * 1024).run()
+let server = Server(routes: try allRoutes(), port: Config.port, maxRequestBodySize: 256 * 1024)
+do {
+    try await server.withServer { boundPort in
+        LogFile.info("serving on http://localhost:\(boundPort)")
+        // Serve until the process is stopped.
+        while !Task.isCancelled {
+            try? await Task.sleep(nanoseconds: 3600 * 1_000_000_000)
+        }
+    }
+} catch {
+    LogFile.critical("server stopped: \(error)")
+    exit(1)
+}
 
 // ── Route composition ─────────────────────────────────────────────────────────
 

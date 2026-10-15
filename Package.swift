@@ -14,6 +14,7 @@ let package = Package(
         .package(url: "https://github.com/PerfectlySoft/Perfect-CRUD.git", from: "3.1.0"),
         .package(url: "https://github.com/PerfectlySoft/Perfect-MySQL.git", from: "4.0.0"),
         .package(url: "https://github.com/PerfectlySoft/Perfect-Logger.git", from: "4.0.0"),
+        .package(url: "https://github.com/apple/swift-nio.git", from: "2.65.0"),
     ],
     targets: [
         .executableTarget(
@@ -23,6 +24,7 @@ let package = Package(
                 .product(name: "PerfectCRUD",    package: "Perfect-CRUD"),
                 .product(name: "PerfectMySQL",   package: "Perfect-MySQL"),
                 .product(name: "PerfectLogger",  package: "Perfect-Logger"),
+                .product(name: "NIOPosix",       package: "swift-nio"),
             ]
         )
     ]
