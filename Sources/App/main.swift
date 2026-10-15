@@ -19,7 +19,11 @@ LogFile.info("database \(Config.dbName) on \(Config.dbHost):\(Config.dbPort) as 
 
 // PerfectCRUD prints the SQL it runs, and its own errors, to stdout. Send both to the log at
 // debug level instead: the errors that matter reach the log anyway, from the route that hit them.
-let crudToLog = CRUDLogDestination.custom { event in LogFile.debug("PerfectCRUD \(event.type): \(event.msg)") }
+// Whitespace (CREATE TABLE spans lines) is collapsed so each event stays on one log line.
+let crudToLog = CRUDLogDestination.custom { event in
+    let message = event.msg.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+    LogFile.debug("PerfectCRUD \(event.type): \(message)")
+}
 CRUDLogging.queryLogDestinations = [crudToLog]
 CRUDLogging.errorLogDestinations = [crudToLog]
 
@@ -50,7 +54,7 @@ do {
         }
     }
 } catch {
-    LogFile.critical("server stopped: \(error)")
+    LogFile.critical("could not start: \(error)")
     exit(1)
 }
 
