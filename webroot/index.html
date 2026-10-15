@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PerfectTemplate</title>
+    <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; max-width: 720px; margin: 60px auto; padding: 0 24px; color: #1a1a1a; line-height: 1.6; }
         h1 { font-size: 2rem; margin-bottom: 4px; }
@@ -25,12 +26,14 @@
 <body>
 
 <h1>PerfectTemplate</h1>
-<p>A Swift 6 starter built on <strong>PerfectNIO</strong> + <strong>PerfectCRUD</strong> + <strong>PerfectMySQL</strong>.</p>
+<p>A Swift 6 starter built on <strong>PerfectNIO</strong> + <strong>PerfectCRUD</strong> + <strong>PerfectMySQL</strong> + <strong>PerfectLogger</strong>.
+Open the <a href="/posts">Posts</a> page to try it.</p>
 
 <h2>Web routes</h2>
 <table>
     <tr><th>Method</th><th>Path</th><th>Description</th></tr>
     <tr><td><span class="badge get">GET</span></td><td><code>/</code></td><td>This page</td></tr>
+    <tr><td><span class="badge get">GET</span></td><td><code>/posts</code></td><td>Browser UI for the posts API</td></tr>
     <tr><td><span class="badge get">GET</span></td><td><code>/static/**</code></td><td>Static files from <code>webroot/static/</code></td></tr>
 </table>
 
@@ -46,31 +49,34 @@
 </table>
 
 <h2>Quick start</h2>
-<pre># Install MySQL client (macOS)
-brew install mysql-client pkg-config
-export PKG_CONFIG_PATH="/opt/homebrew/opt/mysql-client/lib/pkgconfig:$PKG_CONFIG_PATH"
+<pre># MySQL in a container, on host port 13306 (the app's default DB_PORT)
+docker run -d --name perfect-template-mysql -p 13306:3306 \
+    -e MYSQL_ROOT_PASSWORD=change-me -e MYSQL_DATABASE=perfect_template \
+    -e MYSQL_USER=perfect -e MYSQL_PASSWORD=perfect mysql:8.4
 
-# Create the database
-mysql -u root -e "CREATE DATABASE IF NOT EXISTS perfect_template;"
+# MySQL client library (macOS; on Linux: apt-get install libmysqlclient-dev pkg-config)
+brew install mysql-client pkgconf
+export PKG_CONFIG_PATH="$(brew --prefix mysql-client)/lib/pkgconfig"
 
-# Build and run
-PKG_CONFIG_PATH=/opt/homebrew/opt/mysql-client/lib/pkgconfig swift run</pre>
+# Build and run from the package root
+swift run</pre>
 
 <h2>Try the API</h2>
 <pre># Health check
-curl http://localhost:8080/api/health
+curl http://localhost:9191/api/health
 
 # Create a post
-curl -X POST http://localhost:8080/api/posts \
+curl -X POST http://localhost:9191/api/posts \
      -H "Content-Type: application/json" \
      -d '{"title":"Hello","body":"World"}'
 
 # List posts
-curl http://localhost:8080/api/posts</pre>
+curl http://localhost:9191/api/posts</pre>
 
 <div class="tip">
-    Override defaults with environment variables:
-    <code>PORT=9090 DB_NAME=myapp DB_USER=app DB_PASS=secret swift run</code>
+    Override defaults with environment variables, for example
+    <code>PORT=9090 DB_HOST=db.internal DB_PORT=3306 DB_USER=app DB_PASS=secret swift run</code>.
+    The README lists them all.
 </div>
 
 </body>

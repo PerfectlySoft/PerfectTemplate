@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Posts — PerfectTemplate</title>
+    <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
     <style>
         *, *::before, *::after { box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; background: #f9fafb; color: #1a1a1a; }
@@ -78,7 +79,7 @@
 <main>
     <div class="toolbar">
         <h2 id="count-label">Loading…</h2>
-        <button class="btn btn-primary" onclick="openNew()">+ New Post</button>
+        <button class="btn btn-primary" id="new-btn">+ New Post</button>
     </div>
 
     <div class="error-bar" id="error-bar"></div>
@@ -101,21 +102,21 @@
 </main>
 
 <!-- Add / Edit modal -->
-<div class="overlay" id="overlay" onclick="maybeClose(event)">
+<div class="overlay" id="overlay">
     <div class="modal">
         <h3 id="modal-title">New Post</h3>
-        <form id="post-form" onsubmit="savePost(event)">
+        <form id="post-form">
             <input type="hidden" id="editing-id">
             <div class="field">
                 <label for="f-title">Title</label>
-                <input type="text" id="f-title" placeholder="Enter a title" required autocomplete="off">
+                <input type="text" id="f-title" placeholder="Enter a title" required maxlength="200" autocomplete="off">
             </div>
             <div class="field">
                 <label for="f-body">Body</label>
-                <textarea id="f-body" placeholder="Write something…"></textarea>
+                <textarea id="f-body" placeholder="Write something…" maxlength="20000"></textarea>
             </div>
             <div class="form-actions">
-                <button type="button" class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+                <button type="button" class="btn btn-ghost" id="cancel-btn">Cancel</button>
                 <button type="submit" class="btn btn-primary" id="save-btn">Save</button>
             </div>
         </form>
@@ -152,7 +153,7 @@ let posts = [];
 function formatDate(iso) {
     if (!iso) return '—';
     const d = new Date(iso);
-    return isNaN(d) ? iso : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+    return isNaN(d) ? String(iso) : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 function render() {
@@ -165,18 +166,29 @@ function render() {
         return;
     }
 
+    // Every value from the server goes through esc() before it reaches innerHTML, and ids
+    // travel in data-id attributes rather than inline onclick JavaScript, where HTML
+    // escaping alone would not be enough.
     tbody.innerHTML = posts.map(p => `
         <tr>
             <td class="title" title="${esc(p.title)}">${esc(p.title)}</td>
             <td class="body-preview" title="${esc(p.body)}">${esc(p.body)}</td>
-            <td class="date">${formatDate(p.createdAt)}</td>
+            <td class="date">${esc(formatDate(p.createdAt))}</td>
             <td class="actions">
-                <button class="btn btn-ghost btn-sm" onclick="openEdit('${esc(p.id)}')">Edit</button>
-                <button class="btn btn-danger btn-sm" onclick="deletePost('${esc(p.id)}', this)">Delete</button>
+                <button class="btn btn-ghost btn-sm" data-action="edit" data-id="${esc(p.id)}">Edit</button>
+                <button class="btn btn-danger btn-sm" data-action="delete" data-id="${esc(p.id)}">Delete</button>
             </td>
         </tr>
     `).join('');
 }
+
+// One listener for every Edit/Delete button in the table.
+document.getElementById('posts-body').addEventListener('click', e => {
+    const btn = e.target.closest('button[data-action]');
+    if (!btn) return;
+    if (btn.dataset.action === 'edit') openEdit(btn.dataset.id);
+    if (btn.dataset.action === 'delete') deletePost(btn.dataset.id, btn);
+});
 
 function esc(str) {
     return String(str ?? '')
@@ -214,7 +226,7 @@ async function savePost(e) {
 
     try {
         if (id) {
-            await api('PUT', '/posts/' + id, { title, body });
+            await api('PUT', '/posts/' + encodeURIComponent(id), { title, body });
         } else {
             await api('POST', '/posts', { title, body });
         }
@@ -235,7 +247,7 @@ async function deletePost(id, btn) {
     btn.disabled = true;
     hideError();
     try {
-        await api('DELETE', '/posts/' + id);
+        await api('DELETE', '/posts/' + encodeURIComponent(id));
         await loadPosts();
     } catch (err) {
         showError('Delete failed: ' + err.message);
@@ -287,6 +299,10 @@ function hideError() {
 
 // ── Init ───────────────────────────────────────────────────────────────────────
 
+document.getElementById('new-btn').addEventListener('click', openNew);
+document.getElementById('cancel-btn').addEventListener('click', closeModal);
+document.getElementById('post-form').addEventListener('submit', savePost);
+document.getElementById('overlay').addEventListener('click', maybeClose);
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 loadPosts();
 </script>
