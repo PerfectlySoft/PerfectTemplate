@@ -104,10 +104,13 @@ func apiRoutes() throws -> Routes<HTTPRequest, HTTPOutput> {
         let deleted = try await withDB { db -> Bool in
             // PerfectCRUD's typed delete() doesn't report how many rows it removed; the dynamic
             // API does, so one statement both deletes and tells us whether the post existed.
+            // The table and key names come from the model, as the typed API would use them.
+            let structure = try Post.CRUDTableStructure()
             let result = try db.mutate(DynamicMutation(
                 action: .delete,
-                table: "Post",
-                predicates: [DynamicPredicate(field: "id", comparison: .equal, value: .string(id.uuidString))]
+                table: structure.tableName,
+                predicates: [DynamicPredicate(field: structure.primaryKeyName ?? "id",
+                                              comparison: .equal, value: .string(id.uuidString))]
             ))
             return result.affectedRows > 0
         }
@@ -175,7 +178,7 @@ private func notFound(_ id: UUID) -> ErrorOutput {
 /// not on their own.
 private func validTitle(_ title: String) throws -> String {
     let title = title.trimmingCharacters(in: .whitespacesAndNewlines)
-    try checkLength(title, limit: PostLimits.titleLength, name: "Title")
+    try checkLength(title, name: "Title", characters: PostLimits.titleLength, codePoints: PostLimits.titleCodePoints)
     guard !title.unicodeScalars.contains(where: isRefusedInTitle) else {
         throw ErrorOutput(status: .badRequest, description: "Title must be a single line of plain text.")
     }
@@ -186,16 +189,30 @@ private func validTitle(_ title: String) throws -> String {
 }
 
 private func validBody(_ body: String) throws -> String {
-    try checkLength(body, limit: PostLimits.bodyLength, name: "Body")
+    try checkLength(body, name: "Body", characters: PostLimits.bodyLength, codePoints: PostLimits.bodyCodePoints)
     return body
 }
 
-/// Limits characters, and Unicode scalars to eight per character on average (an emoji family
-/// is seven), so one character stacked with thousands of combining marks can't slip through.
-private func checkLength(_ text: String, limit: Int, name: String) throws {
-    guard text.count <= limit, text.unicodeScalars.count <= limit * 8 else {
-        throw ErrorOutput(status: .badRequest, description: "\(name) must be at most \(limit) characters.")
+/// Limits what a reader sees (characters) and, separately, the Unicode code points behind
+/// them, so one character stacked with thousands of combining marks can't slip through.
+private func checkLength(_ text: String, name: String, characters: Int, codePoints: Int) throws {
+    guard text.count <= characters else {
+        throw ErrorOutput(status: .badRequest, description: "\(name) must be at most \(grouped(characters)) characters.")
     }
+    guard text.unicodeScalars.count <= codePoints else {
+        throw ErrorOutput(status: .badRequest, description: "\(name) is too long (at most \(grouped(codePoints)) Unicode code points).")
+    }
+}
+
+/// 20000 → "20,000", the same in every locale.
+private func grouped(_ n: Int) -> String {
+    var digits = String(n)
+    var i = digits.endIndex
+    while digits.distance(from: digits.startIndex, to: i) > 3 {
+        i = digits.index(i, offsetBy: -3)
+        digits.insert(",", at: i)
+    }
+    return digits
 }
 
 private func isRefusedInTitle(_ scalar: Unicode.Scalar) -> Bool {

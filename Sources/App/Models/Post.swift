@@ -23,6 +23,10 @@ struct UpdatePostRequest: Codable, Sendable {
 
 /// Input limits. The server also refuses request bodies over `maxRequestBodySize` (see main.swift).
 enum PostLimits {
+    /// Characters, as a reader counts them.
     static let titleLength = 200
     static let bodyLength = 20_000
+    /// Unicode code points. Generous for real text (an emoji family is 7), but bounded.
+    static let titleCodePoints = 2_000
+    static let bodyCodePoints = 100_000
 }
